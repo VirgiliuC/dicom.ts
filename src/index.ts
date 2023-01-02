@@ -4,6 +4,7 @@ import { DCMImage } from "./parser";
 import Series from "./image/series";
 
 import Renderer  from "./renderer/Renderer";
+import { ColorMap, makeRainbowPallette, makeColorPalletteFromMap}  from "./renderer/Utils";
 import {IFrameInfo} from "./image/Types";
 
 import {
@@ -20,6 +21,8 @@ export {
 	Renderer,
 	Parser,
 	Series,
-	DCMImage
+	DCMImage, 
+	makeRainbowPallette, 
+	makeColorPalletteFromMap
 };
- export type { IFrameInfo };
+ export type { ColorMap,IFrameInfo };

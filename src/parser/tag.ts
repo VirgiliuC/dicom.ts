@@ -44,6 +44,7 @@ export const TagIds: Record<string, TagTupleID> = {
 	PaletteBlue: [0x0028, 0x1203],
 
 	// data scale
+	DoseGridScaling: [0x3004, 0x000E],
 	DataScaleSlope: [0x0028, 0x1053],
 	DataScaleIntercept: [0x0028, 0x1052],
 	DataScaleElscint: [0x0207, 0x101f],

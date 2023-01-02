@@ -240,11 +240,16 @@ class DCMImage extends DCMObject {
 	}
 
 	/**
-	 * Returns the rescale slope.
-	 * @returns {number}
+	 * If the modality is RTDOSE, then return the dose grid scaling, otherwise return the data scale
+	 * slope.
+	 * @returns The value of the tag with the given ID.
 	 */
 	get dataScaleSlope(): number {
-		return this.getTagValueIndexed(TagIds.DataScaleSlope) as number;
+		/*If we deal with RT Dose, then this is the scaling for pixel values to dose units*/
+		if(this.modality === "RTDOSE")
+			return this.getTagValueIndexed(TagIds.DoseGridScaling) as number;
+		else
+			return this.getTagValueIndexed(TagIds.DataScaleSlope) as number;
 	}
 
 	/**
@@ -255,6 +260,7 @@ class DCMImage extends DCMObject {
 		return this.getTagValueIndexed(TagIds.DataScaleIntercept) as number;
 	}
 
+	
 	get dataScaleElscint(): number {
 		let scale = this.getTagValueIndexed(TagIds.DataScaleElscint) as number || 1;
 

@@ -1,2 +1,3 @@
 import Renderer  from "./Renderer";//"./Renderer_old";
-export { Renderer};
+import { ColorMap, makeRainbowPallette, makeColorPalletteFromMap}  from "./Utils";
+export { Renderer, makeRainbowPallette, makeColorPalletteFromMap};
