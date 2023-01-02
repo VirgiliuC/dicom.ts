@@ -233,14 +233,12 @@ class ContrastifyProgram implements IProgram {
 			});
 		}, 0);
 
-		/*place holder for the shared (global) uniforms, to be updated just before rendering*/
-		const emptyUniforms:Uniforms = { };
 		
 		return {
 			active: true,
 			programInfo: contrastProgramInfo,
 			bufferInfo: unitQuadBufferInfo,
-			uniforms: [emptyUniforms, specificUniforms]
+			uniforms: [specificUniforms]
 		}
 	}
 	

@@ -122,13 +122,11 @@ class ColorPaletteProgram implements IProgram {
 			u_modulation: modulationColor
 		};
 		
-		/*place holder for the shared (global) uniforms, to be updated just before rendering*/
-		const emptyUniforms:Uniforms = { };
 		return {
 			active: true,
 			programInfo,
 			bufferInfo: unitQuadBufferInfo,
-			uniforms: [emptyUniforms, specificUniforms]
+			uniforms: [specificUniforms]
 		}
 	}
 

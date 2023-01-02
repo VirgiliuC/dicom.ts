@@ -82,14 +82,12 @@ class GreyscaleProgram implements IProgram {
 			u_modulation: modulationColor,
 			u_matrix_pat2pix: twgl.m4.inverse(frame.mat4Pix2Pat)
 		};
-		/*place holder for the shared (global) uniforms, to be updated just before rendering*/
-		const emptyUniforms:Uniforms = { };
 
 		return {
 			active: true,
 			programInfo,
 			bufferInfo: unitQuadBufferInfo,
-			uniforms: [emptyUniforms, specificUniforms]
+			uniforms: [specificUniforms]
 		}
 	}
 

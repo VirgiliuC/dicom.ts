@@ -117,7 +117,7 @@ class Renderer {
                 const program = this.getProgram(frames.imageInfo);
                 /* get the Program to generate its DrawObject and add it to the list*/
 				let drawObj:IDrawObject = program?.makeDrawObject(frames);
-				drawObj.uniforms[0] = this.sharedUniforms;
+				drawObj.uniforms.push(this.sharedUniforms);
                 this.imgDrawObjectArray.push(drawObj);
             }
 		}
@@ -133,22 +133,25 @@ class Renderer {
      * `imgDrawObjectArray` array
      */
     render() {
-		const { gl } = this;		
-		const {viewport} =this;
+        const { gl } = this;        
+        const {viewport} =this;
         /* let's set the viewport as xo, yo, width, height respectively*/
-		gl.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
-		gl.clearColor(0,0,0,1);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-		/*here we will blend all the images according to their alpha (use modulation colour)*/
-		gl.enable(gl.BLEND);
-		gl.blendEquation(gl.FUNC_ADD);
-		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		// gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
-		twgl.drawObjectList(gl, this.imgDrawObjectArray);
-		twgl.drawObjectList(gl, this.toverlayDrawObjectArray);
-		gl.disable(gl.BLEND);
-		twgl.drawObjectList(gl, this.soverlayDrawObjectArray);
-	}
+        gl.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
+        gl.scissor(viewport[0],viewport[1],viewport[2],viewport[3]);
+        gl.enable(gl.SCISSOR_TEST);
+        gl.clearColor(0,0,0,1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        /*here we will blend all the images according to their alpha (use modulation colour)*/
+        gl.enable(gl.BLEND);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        // gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+        twgl.drawObjectList(gl, this.imgDrawObjectArray);
+        twgl.drawObjectList(gl, this.toverlayDrawObjectArray);
+        gl.disable(gl.BLEND);
+        twgl.drawObjectList(gl, this.soverlayDrawObjectArray);
+        gl.disable(gl.SCISSOR_TEST);
+    }
     /**
      * It returns the number of frame sets in the animation
      * @returns The number of frame sets in the animation.
@@ -158,14 +161,12 @@ class Renderer {
     }
 
 	/**
-	 * This function returns an array of twgl.m4.Mat4 objects, which are the projection, view, and model
-	 * matrices.
-	 * @returns An array of twgl.m4.Mat4 objects.
+	 * This function returns a copy of the sharedUniforms object, which contains 
+	 * the projection, view, and model matrices.
+	 * @returns A copy of the sharedUniforms object.
 	 */
-	getMatrixChain(): twgl.m4.Mat4[] {
-        return [this.sharedUniforms.u_matrix_proj, 
-				this.sharedUniforms.u_matrix_view,
-				this.sharedUniforms.u_matrix_model];
+	getSharedUniforms(): Uniforms {
+        return {...this.sharedUniforms};
     }
 	
 	/**
@@ -245,14 +246,18 @@ class Renderer {
 
 	/**
 	 * The function takes an array of objects that implement the IDrawObject interface and assigns it to
-	 * the toverlayDrawObjectArray property. 
+	 * the transparent toverlayDrawObjectArray property. 
 	 * It renders a possibly alpha-transparent overlay, which could be annotation, segmentation, etc.
-	 * @param tools - Array<IDrawObject> - This is the array of objects that you want to draw on top of the
+	 * @param tobjs - Array<IDrawObject> - This is the array of objects that you want to draw on top of the
 	 * images, but below the tools.
 	 */
-	set toverlayObjects(tools: Array<IDrawObject> )  {
-		this.toverlayDrawObjectArray = tools;
-	}
+	set toverlayObjects(tobjs: Array<IDrawObject> )  {
+        this.toverlayDrawObjectArray = tobjs;
+
+        for (let i = 0; i < this.toverlayDrawObjectArray.length; i++) {
+            this.toverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
+        }
+    }
 	/**
 	 * This function returns an array of IDrawObjects, forming the transparent overlay (annotation, segmentation, etc.).
 	 * @returns An array of overlay IDrawObjects.
@@ -267,6 +272,10 @@ class Renderer {
 	 */
 	set soverlayObjects(tools: Array<IDrawObject> )  {
 		this.soverlayDrawObjectArray = tools;
+
+        for (let i = 0; i < this.soverlayDrawObjectArray.length; i++) {
+            this.soverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
+        }
 	}
 	/**
 	 * This function returns an array of IDrawObjects, which are drawn at the end, as solid opaque entities (usually screen tools).
