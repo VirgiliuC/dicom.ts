@@ -22,7 +22,7 @@ import { Series } from "dicom.ts";
 import { parseImage } from "dicom.ts";
 import { Renderer } from "dicom.ts";
 import { IFrameInfo,SliceDirection } from "dicom.ts";
-import { ColorMap, makeRainbowPallette, makeColorPalletteFromMap}  from "dicom.ts";
+import { ColorMap, makeRainbowPallette, makeRainbowColormap , makeColorPalletteFromMap}  from "dicom.ts";
 
 //===================================================================
 // const parseDecodeAndRender = (buf: ArrayBuffer, canvas: HTMLCanvasElement): Promise<void> => {
@@ -102,17 +102,19 @@ const DICOMJSRenderer = ({
 			imageSeries.getFrames().then((framesObj: IFrameInfo) =>{
 				if(framesObj.imageInfo.image.modality === "RTDOSE"){
 					const {slope, bitsAllocated} = framesObj.imageInfo;
-					let doseColors: ColorMap = new Map();
-					doseColors.set(Math.round(0/slope), [111,0,221]);//blue
-					doseColors.set(Math.round(5/slope), [53,68,255]);//blue
-					doseColors.set(Math.round(10/slope), [54,188,124]);//green
-					doseColors.set(Math.round(25/slope), [213,66,198]);//purplish
-					doseColors.set(Math.round(35/slope), [255,128,0]);//orange
-					doseColors.set(Math.round(45/slope), [15,206,240]);//cyan
-					doseColors.set(Math.round(60/slope), [255,255,0]);//yellow
-					doseColors.set(Math.round(65/slope), [249,120,98]);//red
+					// let doseColors: ColorMap = new Map();
+					// doseColors.set(Math.round(2.5/slope), [111,0,221]);//blue
+					// doseColors.set(Math.round(5/slope), [53,68,255]);//blue
+					// doseColors.set(Math.round(10/slope), [54,188,124]);//green
+					// doseColors.set(Math.round(25/slope), [213,66,198]);//purplish
+					// doseColors.set(Math.round(35/slope), [255,128,0]);//orange
+					// doseColors.set(Math.round(45/slope), [15,206,240]);//cyan
+					// doseColors.set(Math.round(60/slope), [255,255,0]);//yellow
+					// doseColors.set(Math.round(65/slope), [249,120,98]);//red
 					// framesObj.imageInfo.invert = true;
-					framesObj.imageInfo.palette = makeColorPalletteFromMap(doseColors,1024, bitsAllocated);
+					let doseColors: ColorMap = makeRainbowColormap (16, 2.5/slope, 60/slope, 0.7,0);
+					// framesObj.imageInfo.palette = makeRainbowPallette (32,0.7,1,1.0);
+					framesObj.imageInfo.palette = makeColorPalletteFromMap(doseColors,256, bitsAllocated);
 				}
 				setFrames(framesObj);
 			});
@@ -130,7 +132,7 @@ const DICOMJSRenderer = ({
 				setStudySize([width,height,frames!.imageInfo.nFrames]);				
 			}
 			if(frames.imageInfo.image.modality === "RTDOSE")
-				frames.imageInfo.modulationColor = [1,0,1,0.5];
+				frames.imageInfo.modulationColor = [1,1,1,0.5];
 			// else
 			// 	frames.imageInfo.modulationColor = [0,1,0,1];
 			frameSets.push(frames!);

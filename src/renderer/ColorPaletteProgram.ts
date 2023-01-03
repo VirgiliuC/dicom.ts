@@ -117,9 +117,10 @@ class ColorPaletteProgram implements IProgram {
 			u_redTexture: red,
 			u_greenTexture: green,
 			u_blueTexture: blue,
-			u_paletteWidthRatio: 1.0/(2 ** bitsAllocated) / palette!.nEntries,
+			u_paletteWidthRatio: (2 ** bitsAllocated) / palette!.nEntries,
 			u_invert: invert,
-			u_modulation: modulationColor
+			u_modulation: modulationColor,
+			u_matrix_pat2pix: twgl.m4.inverse(frame.mat4Pix2Pat)
 		};
 		
 		return {

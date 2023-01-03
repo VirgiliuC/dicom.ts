@@ -87,6 +87,49 @@ export function  makeRainbowPallette (nEntries: number,
 export type ColorMap = Map<number, [number,number,number]>;
 
 /**
+ * It takes a range of key values and a range of normalized [0,1] values and returns a map of key
+ * values to RGB values
+ * @param {number} nEntries - how many distinct entries we have in the map
+ * @param {number} keyStart - the first key value into the map
+ * @param {number} keyEnd - the maximum value of the data you want to map to the color map
+ * @param {number} valueStart - the normalized [0,1] start value into the rainbow range
+ * @param {number} valueEnd - the upper limit of the colors range
+ * @returns A map of colors.
+ */
+export function  makeRainbowColormap (
+    nEntries: number, //how many distinct entries we have in the map
+    keyStart: number,// first key value into the map
+    keyEnd: number,  // last key value into the map
+    valueStart: number,// a normalized [0,1] start value into the rainbow range
+    valueEnd: number  // a normalized [0,1] end value into the rainbow range
+    ): ColorMap{
+
+    let colorMap: ColorMap = new Map();
+    const clamp = (num: number, min: number, max: number) => 
+        Math.min(Math.max(num, min), max);
+
+    valueStart       = clamp(valueStart, 0.0, 1.0);
+    valueEnd         = clamp(valueEnd,   0.0, 1.0);
+    
+    const lColor = Math.round(valueStart*255); // the lower limit of the colors range
+    const uColor = Math.round(valueEnd*255);   // the upper limit of the colors range
+    const range  =  uColor-lColor;             // the number of distinct colors
+    let color_value: number;
+
+    const keyIncrement = (keyEnd-keyStart)/(nEntries-1);
+    let   keyCurrent = keyStart;
+
+    for(let i:number =0; i < nEntries; i++)    {
+        // if the numEntries < range, the colors must be evenly choosen along the range
+        color_value = lColor+Math.round(i/(nEntries-1)*range);
+        let rgb: DataView = hsl_to_rgb(color_value, 255, 128);
+        colorMap.set(keyCurrent, [rgb.getUint8(0),rgb.getUint8(1),rgb.getUint8(2)]);
+        keyCurrent += keyIncrement;
+    }
+
+    return colorMap;
+}
+/**
  * It takes a map of pixel values and colors, and returns a palette with the given number of entries,
  * where each entry is a color, and the colors are distributed according to the pixel values in the map
  * @param {ColorMap} colorMap - a map of pixel values to RGB values, e.g. {1000: [0,255,0], 2000:
@@ -112,8 +155,6 @@ export function makeColorPalletteFromMap(
        given for pixval 1000 and red for 2000,we put green on [1000-2000) band as 'above',
        and red on the next interval, [2000, next)
     */
-   console.log("colorMap: ", [...colorMap]);
-    console.log("pixvalColors: ", [...pixvalColors]);
    let color = [0,0,0];
    let i:number = 0;
     for (const [pixval, rgb] of pixvalColors) {
