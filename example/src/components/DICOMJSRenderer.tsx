@@ -11,7 +11,7 @@ import React, {
 // import Series from "dicom.ts/src/image/series";
 
 // // import  Parser from "../dicom.ts/src/parser/parser";
-// import { parseImage } from "dicom.ts/src/parser/parser";
+// import { parseDcmObj } from "dicom.ts/src/parser/parser";
 // import Renderer  from "dicom.ts/src/renderer/Renderer";
 // import {IFrameInfo} from "dicom.ts/src/image/Types";
 
@@ -24,15 +24,7 @@ import { Renderer } from "dicom.ts";
 import { IFrameInfo,SliceDirection } from "dicom.ts";
 import { ColorMap, makeRainbowPallette, makeRainbowColormap , makeColorPalletteFromMap}  from "dicom.ts";
 
-//===================================================================
-// const parseDecodeAndRender = (buf: ArrayBuffer, canvas: HTMLCanvasElement): Promise<void> => {
-// 	const data = new DataView(buf);
-// 	Parser.verbose = true;
-// 	const image = parseImage(data);
-// 	const scale = 1.0;
-// 	console.log("Num frames = " + image?.numberOfFrames);
-// 	return renderImage(image!, 0, canvas, scale);
-// };
+
 
 //===================================================================
 type RenderProps = {
@@ -91,9 +83,9 @@ const DICOMJSRenderer = ({
 			clearTimeout(timerRef);
 			for(let bufferIndex in dataBufferArray){
 				/*parse each raw image as a Dicom image*/
-				let dcmImage:DCMImage = parseImage(new DataView(dataBufferArray[bufferIndex])) as DCMImage;
+				let dcmImage = parseImage(new DataView(dataBufferArray[bufferIndex]));
 				/* add this Dicom image to the Sries*/
-				if(imageSeries.matchesSeries(dcmImage))
+				if(imageSeries.matchesSeries(dcmImage) && dcmImage)
 					imageSeries.addImage(dcmImage);
 			}
 			/*now build the whole series in the correct way*/

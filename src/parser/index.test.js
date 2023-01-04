@@ -1,6 +1,6 @@
 import fs from "fs";
 import util from "util";
-import { parseImage } from ".";
+import { parseDcmObj } from ".";
 
 // eslint-disable-next-line no-undef
 if (globalThis.window && !window.TextDecoder) {
@@ -145,7 +145,7 @@ describe("parser tests", () => {
 	test.each(file)("Parses file %s OK", (filePath) => {
 		const data = fs.readFileSync(`${path}${filePath}`);
 		const dataView = new DataView(new Uint8Array(data).buffer);
-		const image = parseImage(dataView);
+		const image = parseDcmObj(dataView);
 		expect(image).toBeTruthy();
 		expect(image.tags).toBeTruthy();
 		expect(image.tags).toMatchSnapshot();
@@ -154,7 +154,7 @@ describe("parser tests", () => {
 	it("Parses specific file OK", () => {
 		const data = fs.readFileSync(`${path}${specificKey}`);
 		const dataView = new DataView(new Uint8Array(data).buffer);
-		const image = parseImage(dataView);
+		const image = parseDcmObj(dataView);
 		expect(image).toBeTruthy();
 		expect(image.tags).toBeTruthy();
 		expect(image.tags).toMatchSnapshot();
@@ -163,7 +163,7 @@ describe("parser tests", () => {
 	it("Parses issue #19 OK", () => { // https://github.com/wearemothership/dicom.ts/issues/19
 		const data = fs.readFileSync("./node_modules/dicom-test-files/dicom-ts-issues/parse-issue-19.dcm");
 		const dataView = new DataView(new Uint8Array(data).buffer);
-		const image = parseImage(dataView);
+		const image = parseDcmObj(dataView);
 		expect(image).toBeTruthy();
 		expect(image.tags).toBeTruthy();
 		expect(image.tags).toMatchSnapshot();
@@ -172,7 +172,7 @@ describe("parser tests", () => {
 	it("Parses issue #54 OK", () => { // https://github.com/wearemothership/dicom.ts/issues/54
 		const data = fs.readFileSync("./node_modules/dicom-test-files/dicom-ts-issues/54-implicit-file-meta-info.dcm");
 		const dataView = new DataView(new Uint8Array(data).buffer);
-		const image = parseImage(dataView);
+		const image = parseDcmObj(dataView);
 		expect(image).toBeTruthy();
 		expect(image.tags).toBeTruthy();
 		expect(image.tags).toMatchSnapshot();

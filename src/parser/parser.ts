@@ -2,6 +2,8 @@
 // @ts-ignore
 import pako from "pako";
 // @ts-ignore
+import DCMObject from "./dicomobj";
+// @ts-ignore
 import DCMImage from "./image";
 // @ts-ignore
 import Tag, { TagIds } from "./tag";
@@ -127,11 +129,11 @@ class Parser implements IParserPublic {
 	 * @param {DataView} data
 	 * @returns {Image|null}
 	 */
-	parse(dataIn: DataView):any {
-		let image = null;
+	parse(dataIn: DataView):DCMObject | null {
+		let dcmobj = null;
 		let data = dataIn;
 		try {
-			image = new DCMImage();
+			dcmobj = new DCMObject();
 			const offset = findFirstTagOffset(data);
 			let tag = this.getNextTag(data, offset);
 
@@ -140,7 +142,7 @@ class Parser implements IParserPublic {
 					console.log(tag.toString());
 				}
 
-				image.putTag(tag);
+				dcmobj.putTag(tag);
 
 				if (tag.is(TagIds.PixelData)) {
 					break;
@@ -163,12 +165,12 @@ class Parser implements IParserPublic {
 			this.error = (<Error> err);
 		}
 
-		if (image !== null) {
+		if (dcmobj !== null) {
 			// set cached tags
-			image.littleEndian = this.littleEndian;
+			dcmobj.littleEndian = this.littleEndian;
 		}
 
-		return image;
+		return dcmobj;
 	}
 	
 	//--------------------------------------------------------
@@ -442,26 +444,46 @@ class Parser implements IParserPublic {
 
 
 //--------------------------------------------------------
+
 /**
- * Parses the DICOM header and return an image object.
- * @param {DataView} data
- * @returns {DCMImage|null}
+ * It takes a DataView object and returns a DCMObject object
+ * @param {DataView} data - DataView
+ * @returns A DCMObject.
  */
- export const parseImage = (data: DataView): DCMImage | null => {
+ export const parseDcmObj = (data: DataView): DCMObject | null => {
 	const parser = new Parser();
-	const image = parser.parse(data);
+	const dcmobj = parser.parse(data);
 
-	// if (parser.hasError()) {
-	// 	Series.parserError = parser.error as Error;
-	// 	return null;
-	// }
+	return dcmobj;
+};
 
-	if (parser.inflated) {
-		image.inflated = parser.inflated;
+
+/**
+ * It takes a DataView object and returns a DCMImage object
+ * @param {DataView} data - DataView
+ * @returns A DCMImage object.
+ */
+
+export const parseImage = (data: DataView): DCMImage | null => {
+	const parser = new Parser();
+	const dcmobj = parser.parse(data);
+	let image = null;
+	/* we do this because there is no type cast in typeScript, only type assertions.
+	also, we do not have a constructor for the DCMImage from DCMObject (we could!), so we're writing it here*/
+	if (dcmobj){
+		image =  new DCMImage();
+
+		image.tags = dcmobj.tags;
+		image.tagsFlat = dcmobj.tagsFlat;
+		image.littleEndian = dcmobj.littleEndian;
+		image.index = dcmobj.index;
 	}
+
+	// if (parser.inflated) {
+	// 	image!.inflated = parser.inflated;
+	// }
 
 	return image;
 };
-
 
 export default Parser;

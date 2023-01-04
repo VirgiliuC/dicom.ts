@@ -11,12 +11,14 @@ import {
 	TransferSyntax,
 	SliceDirection,
 	Parser,
+	parseDcmObj,
 	parseImage,
 } from "./parser";
 
 export {
 	TransferSyntax,
 	SliceDirection,
+	parseDcmObj,
 	parseImage,
 	Renderer,
 	Parser,
