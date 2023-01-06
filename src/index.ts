@@ -1,6 +1,6 @@
 
 
-import { DCMImage } from "./parser";
+import { DCMImage, DCMObject } from "./parser";
 import Series from "./image/series";
 
 import Renderer  from "./renderer/Renderer";
@@ -23,6 +23,7 @@ export {
 	Renderer,
 	Parser,
 	Series,
+	DCMObject, 
 	DCMImage, 
 	makeRainbowPallette, 
 	makeRainbowColormap,
