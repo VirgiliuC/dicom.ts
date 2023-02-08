@@ -35,7 +35,7 @@
   },
   "scripts": {
     "build": "rimraf dist && microbundle --no-compress -f modern,cjs",
-    "postbuild": "browserify -s dicom.ts -p esmify ./dist/index.modern.mjs > ./dist/browser.js",
+    "postbuild": "browserify -s dicom.ts  ./dist/index.js > ./dist/browser.js",
     "start": "rimraf dist && microbundle watch --no-compress -f modern,cjs",
     "prepare": "run-s build",
     "test": "run-s test:unit test:lint test:build",

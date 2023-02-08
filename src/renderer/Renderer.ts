@@ -207,7 +207,7 @@ class Renderer {
     set cutPoint(cut_point: twgl.v3.Vec3) {
 		this.cuttingPoint = [...cut_point];
         /* when we have images, also renew the Model matrix, moving the slice in the right place*/
-        if(this.frameSets.length > 0){
+        if(this.frameSets.length > 0 && this.frameSets[0] !== undefined){
             this.computeMat4Model ();
         }
 	}
@@ -226,7 +226,7 @@ class Renderer {
     * @param {number[]} cut_index - the pixel index of the cut point
     */
     set cutIndex(cut_index: number[]) {
-		if(this.frameSets.length > 0){
+		if(this.frameSets.length > 0 && this.frameSets[0] !== undefined){
             /*convert pixel index to milimiters*/
             this.cutPoint = this.frameSets[0]!.getPix2MM(cut_index);
         }
@@ -255,7 +255,17 @@ class Renderer {
         this.toverlayDrawObjectArray = tobjs;
 
         for (let i = 0; i < this.toverlayDrawObjectArray.length; i++) {
-            this.toverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
+			// get the index of the sharedUniforms reference in the drawObject
+			const sharedUniformsIndex = this.toverlayDrawObjectArray[i].uniforms.indexOf(this.sharedUniforms);
+
+			// if there is not shared uniforms on the draw object add the shared uniforms to it
+			if (sharedUniformsIndex === -1) {
+				this.toverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
+			}
+			// else replace the old shared uniforms
+			else {
+				this.toverlayDrawObjectArray[i].uniforms[sharedUniformsIndex] = this.sharedUniforms;
+			}
         }
     }
 	/**
@@ -274,7 +284,17 @@ class Renderer {
 		this.soverlayDrawObjectArray = tools;
 
         for (let i = 0; i < this.soverlayDrawObjectArray.length; i++) {
-            this.soverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
+			// get the index of the sharedUniforms reference in the drawObject
+			const sharedUniformsIndex = this.soverlayDrawObjectArray[i].uniforms.indexOf(this.sharedUniforms);
+
+			// if there is not shared uniforms on the draw object add the shared uniforms to it
+			if (sharedUniformsIndex === -1) {
+				this.soverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
+			}
+			// else replace the old shared uniforms
+			else {
+				this.soverlayDrawObjectArray[i].uniforms[sharedUniformsIndex] = this.sharedUniforms;
+			}
         }
 	}
 	/**
