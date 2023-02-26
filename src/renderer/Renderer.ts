@@ -52,8 +52,16 @@ class Renderer {
     protected toverlayDrawObjectArray: Array<IDrawObject> = Array(0);
     protected soverlayDrawObjectArray: Array<IDrawObject> = Array(0);
 
-    
+	// zooming and panning
+	// private panDelta: twgl.v3.Vec3 = [50,50,0];
+	private deltaT: Array<number> = [0,0,0];
+	private deltaB: Array<number> = [0,0,0];
+	private deltaL: Array<number> = [0,0,0];
+	private deltaR: Array<number> = [0,0,0];
 
+	private scale: Array<number> = [1,1,1];
+
+    
 	/**
 	 * It creates a new WebGL2RenderingContext object.
 	 * @param {HTMLCanvasElement | null} inCanvas - HTMLCanvasElement | null
@@ -252,20 +260,17 @@ class Renderer {
 	 * images, but below the tools.
 	 */
 	set toverlayObjects(tobjs: Array<IDrawObject> )  {
-        this.toverlayDrawObjectArray = tobjs;
+        this.toverlayDrawObjectArray = [];
 
-        for (let i = 0; i < this.toverlayDrawObjectArray.length; i++) {
-			// get the index of the sharedUniforms reference in the drawObject
-			const sharedUniformsIndex = this.toverlayDrawObjectArray[i].uniforms.indexOf(this.sharedUniforms);
+        for (let i = 0; i < tobjs.length; i++) {
+			let localDrawObject: IDrawObject = {
+				...tobjs[i],
+				programInfo: tobjs[i].programInfo,
+				bufferInfo: tobjs[i].bufferInfo,
+				uniforms: [...tobjs[i].uniforms, this.sharedUniforms]
+			};
 
-			// if there is not shared uniforms on the draw object add the shared uniforms to it
-			if (sharedUniformsIndex === -1) {
-				this.toverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
-			}
-			// else replace the old shared uniforms
-			else {
-				this.toverlayDrawObjectArray[i].uniforms[sharedUniformsIndex] = this.sharedUniforms;
-			}
+			this.toverlayDrawObjectArray.push(localDrawObject);
         }
     }
 	/**
@@ -281,20 +286,17 @@ class Renderer {
 	 * @param tools - Array<IDrawObject> - This is the array of solid objects that you want to add to the canvas.
 	 */
 	set soverlayObjects(tools: Array<IDrawObject> )  {
-		this.soverlayDrawObjectArray = tools;
+		this.soverlayDrawObjectArray = [];
 
-        for (let i = 0; i < this.soverlayDrawObjectArray.length; i++) {
-			// get the index of the sharedUniforms reference in the drawObject
-			const sharedUniformsIndex = this.soverlayDrawObjectArray[i].uniforms.indexOf(this.sharedUniforms);
+        for (let i = 0; i < tools.length; i++) {
+			let localDrawObject: IDrawObject = {
+				...tools[i],
+				programInfo: tools[i].programInfo,
+				bufferInfo: tools[i].bufferInfo,
+				uniforms: [...tools[i].uniforms, this.sharedUniforms]
+			};
 
-			// if there is not shared uniforms on the draw object add the shared uniforms to it
-			if (sharedUniformsIndex === -1) {
-				this.soverlayDrawObjectArray[i].uniforms.push(this.sharedUniforms);
-			}
-			// else replace the old shared uniforms
-			else {
-				this.soverlayDrawObjectArray[i].uniforms[sharedUniformsIndex] = this.sharedUniforms;
-			}
+			this.soverlayDrawObjectArray.push(localDrawObject);
         }
 	}
 	/**
@@ -339,7 +341,45 @@ class Renderer {
     get slicingDirection():SliceDirection{		
 		return this.slicingDir;
 	}
-//------------------------------------------------------------------------------
+
+	/**
+	 * This function pans the camera by the given amount in millimeters.
+	 * @param {number} mmDeltaX - The amount to pan in the X direction in millimeters.
+	 * @param {number} mmDeltaY - The amount to pan in the Y direction in millimeters.
+	 */
+	pan(mmDeltaX: number, mmDeltaY: number) {
+		this.deltaL[this.slicingDir] += mmDeltaX;
+		this.deltaR[this.slicingDir] += mmDeltaX;
+		this.deltaB[this.slicingDir] += mmDeltaY;
+		this.deltaT[this.slicingDir] += mmDeltaY;
+
+		this.computeMat4Ortho();
+	}
+
+	get zoom(): number {
+		return this.scale[this.slicingDir];
+	}
+
+	set zoom(zoomScale: number) {
+		this.scale[this.slicingDir] = (zoomScale <= 0) ? 0.01 : zoomScale;
+
+		this.computeMat4Ortho();
+	}
+
+	/**
+	 * The function resets the values of the delta variables to zero and then calls the function that
+	 * computes the orthographic projection matrix
+	 */
+	reset() {
+		this.deltaB[this.slicingDir] = 0;
+		this.deltaT[this.slicingDir] = 0;
+		this.deltaL[this.slicingDir] = 0;
+		this.deltaR[this.slicingDir] = 0;
+		this.scale[this.slicingDir] = 1;
+
+		this.computeMat4Ortho();
+	}
+	//------------------------------------------------------------------------------
 
 
   /**
@@ -452,61 +492,72 @@ class Renderer {
         /* we need to preserve the aspect ratio of the images, if viewport is different size=wise*/
 		if(VAR > OAR){
 			mat_ortho  = twgl.m4.ortho(
-				-hW[renderDir]*VAR/OAR,hW[renderDir]*VAR/OAR,-hH[renderDir],hH[renderDir],near,far);
+				(-hW[renderDir]*VAR/OAR)*this.scale[renderDir]+this.deltaL[renderDir],
+				(hW[renderDir]*VAR/OAR)*this.scale[renderDir]+this.deltaR[renderDir],
+				(-hH[renderDir])*this.scale[renderDir]+this.deltaB[renderDir],
+				(hH[renderDir])*this.scale[renderDir]+this.deltaT[renderDir],
+				near,far
+			);
 		}
 		else{
-			mat_ortho  = twgl.m4.ortho(-hW[renderDir],hW[renderDir],-hH[renderDir]*OAR/VAR,hH[renderDir]*OAR/VAR,near,far);
+			mat_ortho  = twgl.m4.ortho(
+				(-hW[renderDir])*this.scale[renderDir]+this.deltaL[renderDir],
+				(hW[renderDir])*this.scale[renderDir]+this.deltaR[renderDir],
+				(-hH[renderDir]*OAR/VAR)*this.scale[renderDir]+this.deltaB[renderDir],
+				(hH[renderDir]*OAR/VAR)*this.scale[renderDir]+this.deltaT[renderDir],
+				near,far
+			);
 		};
 		this.sharedUniforms.u_matrix_proj = mat_ortho;
     }
 
-/**
- * It creates a WebGL texture from a frame of a DICOM image
- * @param {IFrameInfo} frame - IFrameInfo - This is the frame that is being decoded.
- * @returns A promise that resolves to a WebGLTexture.
- */
-protected async createTexture(frame: IFrameInfo):Promise<WebGLTexture> {
-	/* Getting the pixels of the image. */
-	const { gl } = this;
-	const pixelData = await frame.pixelData.arrayBuffer();
-	const bytes = new Uint8Array(pixelData);
-	let { height }  = frame.imageInfo.size;
-	const { width } = frame.imageInfo.size;
-	const image  = frame.imageInfo;
-	let format = gl.LUMINANCE_ALPHA;
-	let internalFormat = gl.LUMINANCE_ALPHA;
-	if (image.rgb && !image.planar && !image.palette) {
-		format = gl.RGB;
-		internalFormat = gl.RGB;
+	/**
+	 * It creates a WebGL texture from a frame of a DICOM image
+	 * @param {IFrameInfo} frame - IFrameInfo - This is the frame that is being decoded.
+	 * @returns A promise that resolves to a WebGLTexture.
+	 */
+	protected async createTexture(frame: IFrameInfo):Promise<WebGLTexture> {
+		/* Getting the pixels of the image. */
+		const { gl } = this;
+		const pixelData = await frame.pixelData.arrayBuffer();
+		const bytes = new Uint8Array(pixelData);
+		let { height }  = frame.imageInfo.size;
+		const { width } = frame.imageInfo.size;
+		const image  = frame.imageInfo;
+		let format = gl.LUMINANCE_ALPHA;
+		let internalFormat = gl.LUMINANCE_ALPHA;
+		if (image.rgb && !image.planar && !image.palette) {
+			format = gl.RGB;
+			internalFormat = gl.RGB;
+		}
+		else if (image.bytesAllocated === 1) {
+			format = gl.LUMINANCE;
+			internalFormat = gl.LUMINANCE;
+		}
+		if (image.planar) {
+			height *= image.samples;
+		}
+		/* we always use a 3D texture, as they are also available on mobile devices nowadays*/
+		let depth = frame.imageInfo.nFrames;
+		let texTarget = gl.TEXTURE_3D;
+		const maxSize3D = gl.getParameter(gl.MAX_3D_TEXTURE_SIZE);
+		if(width > maxSize3D ||  height > maxSize3D || depth  > maxSize3D)
+			return Promise.reject("Texture size too large");
+		return Promise.resolve(twgl.createTexture(gl, {
+			src: bytes,
+			target: texTarget,
+			level: 0,
+			width,
+			height,
+			depth,
+			format,
+			internalFormat,
+			type: gl.UNSIGNED_BYTE,
+			min: gl.NEAREST,
+			mag:  gl.NEAREST,
+			wrap: gl.CLAMP_TO_EDGE,
+		}));
 	}
-	else if (image.bytesAllocated === 1) {
-		format = gl.LUMINANCE;
-		internalFormat = gl.LUMINANCE;
-	}
-	if (image.planar) {
-		height *= image.samples;
-	}
-    /* we always use a 3D texture, as they are also available on mobile devices nowadays*/
-	let depth = frame.imageInfo.nFrames;
-	let texTarget = gl.TEXTURE_3D;
-	const maxSize3D = gl.getParameter(gl.MAX_3D_TEXTURE_SIZE);
-	if(width > maxSize3D ||  height > maxSize3D || depth  > maxSize3D)
-		return Promise.reject("Texture size too large");
-	return Promise.resolve(twgl.createTexture(gl, {
-		src: bytes,
-		target: texTarget,
-		level: 0,
-		width,
-		height,
-		depth,
-		format,
-		internalFormat,
-		type: gl.UNSIGNED_BYTE,
-		min: gl.NEAREST,
-		mag:  gl.NEAREST,
-		wrap: gl.CLAMP_TO_EDGE,
-	}));
-}
 
 	//----------------------------------------------------------------------------
 	clear(): void {
