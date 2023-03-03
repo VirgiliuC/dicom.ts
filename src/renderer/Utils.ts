@@ -129,6 +129,37 @@ export function  makeRainbowColormap (
 
     return colorMap;
 }
+
+/**
+ * It creates a color map that maps a range of numbers to a range of colors
+ * @param {number} coldThreshold - The value below which the color will be blue.
+ * @param {number} hotThreshold - The value at which the color map will be fully red.
+ * @returns A map of colors.
+ */
+export function makeHotColdColorMap(coldThreshold: number, hotThreshold: number) {
+    let colorMap: ColorMap = new Map();
+
+    const nEntries = 16;
+    const keyIncrement = (hotThreshold-coldThreshold)/(nEntries-1);
+    let keyCurrent = coldThreshold;
+
+    for (let i = 0; i < nEntries; i++) {
+        if (i < nEntries/2) {
+            colorMap.set(keyCurrent, [0, 0, 255]);
+        }
+        else if (i < nEntries-1) {
+            colorMap.set(keyCurrent, [0, 0, 0]);
+        }
+        else {
+            colorMap.set(keyCurrent, [255, 0, 0]);
+        }
+
+        keyCurrent += keyIncrement;
+    }
+
+    return colorMap;
+}
+
 /**
  * It takes a map of pixel values and colors, and returns a palette with the given number of entries,
  * where each entry is a color, and the colors are distributed according to the pixel values in the map
