@@ -46,9 +46,6 @@ export class DecoderInfo implements IDecoderInfo {
 
 	constructor(image: DCMImage) {
 		this.image = image;
-		if (!image.pixelData) {
-			throw Error("Image has no data");
-		}
 		this.size = new ImageSize(image);
 		switch (image.transferSyntax) {
 			case TransferSyntax.CompressionJpeg:
@@ -90,7 +87,7 @@ export class DecoderInfo implements IDecoderInfo {
 		this.bytesAllocated = Math.round(image.bitsAllocated / 8);
 		this.bitsStored = image.bitsStored;
 		this.signed = image.pixelRepresentation === 1;
-		this.data = image.pixelData.value as DataView;
+		this.data = image.pixelData?.value as DataView || new DataView(new ArrayBuffer(0));
 		this.littleEndian = image.littleEndian;
 	}
 }

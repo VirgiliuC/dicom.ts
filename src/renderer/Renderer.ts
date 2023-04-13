@@ -120,13 +120,22 @@ class Renderer {
 					}	catch(err){
 							console.log(err)
 					};
-                }			
-                /* select the correct GLSL program for this image modality*/
-                const program = this.getProgram(frames.imageInfo);
-                /* get the Program to generate its DrawObject and add it to the list*/
-				let drawObj:IDrawObject = program?.makeDrawObject(frames);
-				drawObj.uniforms.push(this.sharedUniforms);
-                this.imgDrawObjectArray.push(drawObj);
+                }
+				if (frames.visible) {
+					/* select the correct GLSL program for this image modality*/
+					let program;
+					/* if the frame info has a custom program use it else try and find a program for it */
+					if (frames.customProgram !== undefined) {
+						program = frames.customProgram;
+					}
+					else {
+						program = this.getProgram(frames.imageInfo);
+					}
+					/* get the Program to generate its DrawObject and add it to the list*/
+					let drawObj:IDrawObject = program?.makeDrawObject(frames);
+					drawObj.uniforms.push(this.sharedUniforms);
+					this.imgDrawObjectArray.push(drawObj);
+				}			
             }
 		}
         // });
@@ -524,8 +533,8 @@ class Renderer {
 		let { height }  = frame.imageInfo.size;
 		const { width } = frame.imageInfo.size;
 		const image  = frame.imageInfo;
-		let format = gl.LUMINANCE_ALPHA;
-		let internalFormat = gl.LUMINANCE_ALPHA;
+		let format: number = gl.LUMINANCE_ALPHA;
+		let internalFormat: number = gl.LUMINANCE_ALPHA;
 		if (image.rgb && !image.planar && !image.palette) {
 			format = gl.RGB;
 			internalFormat = gl.RGB;

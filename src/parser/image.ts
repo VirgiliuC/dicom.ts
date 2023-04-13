@@ -317,6 +317,14 @@ class DCMImage extends DCMObject {
 	}
 
 	/**
+	 * This function returns an array of strings representing the SOP Instance UID tag value.
+	 * @returns An array of strings representing the SOP Instance UID.
+	 */
+	get sopInstanceUID(): string[] {
+		return this.getTagValue(TagIds.SOPInstanceUID) as string[];
+	}
+
+	/**
 	 * Returns the number of bits stored.
 	 * @returns {number}
 	 */

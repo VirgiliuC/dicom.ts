@@ -97,6 +97,7 @@ export const TagIds: Record<string, TagTupleID> = {
 	SliceLocationVector: [0x0018, 0x2005],
 	GridFrameOffsetVector: [0x3004, 0x000C],
 	FrameIncrementPointer: [0x0028, 0x0009],
+	SOPInstanceUID: [0x0008, 0x0018],
 
 	// LUT shape
 	LutShape: [0x2050, 0x0020],

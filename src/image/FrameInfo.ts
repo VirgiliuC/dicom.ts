@@ -1,16 +1,19 @@
 import * as twgl from "twgl.js";
 
 import { ImageSize , IDisplayInfo, IFrameInfo} from "./Types";
+import IProgram from "../renderer/Program";
 
 
 
 //--------------------------------------------------------
 interface IFrameInfoConstructor {
-	imageInfo: IDisplayInfo,
-	frameNo: number
-	pixelData: Blob
-	mat4Pix2Pat: Float32Array
-	outputSize: ImageSize
+	imageInfo: IDisplayInfo;
+	frameNo: number;
+	pixelData: Blob;
+	mat4Pix2Pat: Float32Array;
+	outputSize: ImageSize;
+	customProgram?: IProgram;
+	visible?: boolean;
 }
 
 //--------------------------------------------------------
@@ -26,11 +29,17 @@ class FrameInfo implements IFrameInfo {
 
 	texture: WebGLTexture = 0;
 
+	customProgram?: IProgram | undefined;
+
+	visible?: boolean | undefined;
+
 	constructor(info: IFrameInfoConstructor) {
 		this.imageInfo 	= info.imageInfo;
 		this.frameNo 	= info.frameNo;
 		this.pixelData 	= info.pixelData;
 		this.mat4Pix2Pat= info.mat4Pix2Pat;
+		this.customProgram = info.customProgram;
+		this.visible = info.visible === undefined ? true : info.visible;
 	}
 	
 	getPix2MM(pixpnt:number[]): number[] {

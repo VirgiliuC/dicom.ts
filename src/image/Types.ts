@@ -1,5 +1,6 @@
 
 import DCMImage from "../parser/image";
+import IProgram from "../renderer/Program";
 
 export interface ISize {
 	width: number,
@@ -142,15 +143,19 @@ export interface IDisplayInfo extends IDecoderInfo {
 //--------------------------------------------------------
 /* Defining an interface for a frame. */
 export interface IFrameInfo {
-	frameNo: number
+	frameNo: number;
 
-	imageInfo: IDisplayInfo
+	imageInfo: IDisplayInfo;
 
-	pixelData: Blob
+	pixelData: Blob;
 
-	mat4Pix2Pat: Float32Array
+	mat4Pix2Pat: Float32Array;
 
-	texture: WebGLTexture
+	texture: WebGLTexture;
+
+	customProgram?: IProgram;
+
+	visible?: boolean; 
 
 	getPix2MM(pixpnt:number[]): number[] ;
 	

@@ -202,7 +202,6 @@ export function makeColorPalletteFromMap(
         greens.setUint8(i, color[1]);
         blues.setUint8(i, color[2]);
     }
-    console.log("reds: ", reds);
     return {
         nEntries,
         firstValue:0,
