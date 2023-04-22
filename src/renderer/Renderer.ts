@@ -80,7 +80,8 @@ class Renderer {
 		this.sharedUniforms = {
 			u_matrix_model: twgl.m4.identity(),
 			u_matrix_view:  twgl.m4.identity(),
-			u_matrix_proj:  twgl.m4.identity()
+			u_matrix_proj:  twgl.m4.identity(),
+			u_sliceDir: SliceDirection.Axial
 		};
 	}
 
@@ -125,7 +126,7 @@ class Renderer {
 					/* select the correct GLSL program for this image modality*/
 					let program;
 					/* if the frame info has a custom program use it else try and find a program for it */
-					if (frames.customProgram !== undefined) {
+					if (frames.customProgram !== undefined && frames.useCustomProgram) {
 						program = frames.customProgram;
 					}
 					else {
@@ -335,6 +336,7 @@ class Renderer {
      */
     set slicingDirection(slice_dir: SliceDirection) {
 		this.slicingDir = slice_dir;
+		this.sharedUniforms.u_sliceDir = slice_dir;
         /* when we have images, renew the whole M-V-P matrix chain*/
         if(this.frameSets.length > 0){
             this.computeMat4Model();
