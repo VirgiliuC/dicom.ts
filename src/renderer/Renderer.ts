@@ -126,7 +126,7 @@ class Renderer {
 					/* select the correct GLSL program for this image modality*/
 					let program;
 					/* if the frame info has a custom program use it else try and find a program for it */
-					if (frames.customProgram !== undefined && frames.useCustomProgram) {
+					if (frames.customProgram !== undefined) {
 						program = frames.customProgram;
 					}
 					else {

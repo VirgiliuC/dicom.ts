@@ -360,6 +360,8 @@ class Series {
 	sliceDir = SliceDirection.Unknown;
 
 	error: Error | null = null;
+
+	private frameInfo: FrameInfo | null = null;
 //--------------------------------------------------------
 	getOrder():number[] {
 		const order:number[] = [];
@@ -590,50 +592,65 @@ class Series {
 		return  mat4pix2pat;
 	}
 
-//============================================================================
-/* Returns a pixel block with its associated info, to be used for a texture3D-based representation.
-   Whether the series is formed by separate images (like CT) describing a volume, or a multi-frame
-   image like RTDose, the pixels are grouped together for texture 3D*/	
-async getFrames():Promise<FrameInfo> 
-{	
-	let frameDataAray:Blob[] = [];
-	let numImages:number = 0;
-	let frameIndex:number = 0;
-	
-	const  displayInfo = displayInfoFromDecoderInfo(new DecoderInfo(this.images[0]));
+	//============================================================================
+	/* Returns a pixel block with its associated info, to be used for a texture3D-based representation.
+	Whether the series is formed by separate images (like CT) describing a volume, or a multi-frame
+	image like RTDose, the pixels are grouped together for texture 3D*/	
+	async getFrames():Promise<FrameInfo> 
+	{	
+		let frameDataAray:Blob[] = [];
+		let numImages:number = 0;
+		let frameIndex:number = 0;
+		
+		const  displayInfo = displayInfoFromDecoderInfo(new DecoderInfo(this.images[0]));
 
-	/*now let's see if we have a volume frame or a series of separate images*/
-	if(this.numberOfFramesInFile > 1){
-		numImages = 1;
-		frameIndex = -1;
-		displayInfo.nFrames = this.numberOfFramesInFile;
-	}
-	else {
-		numImages = this.images.length;
-		frameIndex = 0;
-		displayInfo.nFrames = numImages;//this.numberOfFrames;
-	}
-	
-	for(let currFrame = 0; currFrame < numImages; currFrame++){
-		/* select the correct decoder for this image modality*/
-		const decoder = decoderForImage(this.images[currFrame]);	
-		/*decode frame-by-frame and accumulate*/
-		const frameData = await decoder!.getFramePixels(frameIndex);
-		/*concatenate all the frames' pixel data in one contiguous block*/
-		frameDataAray.push(frameData);
-	}
-	return new FrameInfo({
-		imageInfo: displayInfo,
-		frameNo: -1,
-		pixelData: new Blob(frameDataAray),
-		mat4Pix2Pat: this.getMat4PixToPat(),
-		outputSize: displayInfo.size,
-	});
-}
+		/*now let's see if we have a volume frame or a series of separate images*/
+		if(this.numberOfFramesInFile > 1){
+			numImages = 1;
+			frameIndex = -1;
+			displayInfo.nFrames = this.numberOfFramesInFile;
+		}
+		else {
+			numImages = this.images.length;
+			frameIndex = 0;
+			displayInfo.nFrames = numImages;//this.numberOfFrames;
+		}
+		
+		for(let currFrame = 0; currFrame < numImages; currFrame++){
+			/* select the correct decoder for this image modality*/
+			const decoder = decoderForImage(this.images[currFrame]);	
+			/*decode frame-by-frame and accumulate*/
+			const frameData = await decoder!.getFramePixels(frameIndex);
+			/*concatenate all the frames' pixel data in one contiguous block*/
+			frameDataAray.push(frameData);
+		}
+		let frameInfo = new FrameInfo({
+			imageInfo: displayInfo,
+			frameNo: -1,
+			pixelData: new Blob(frameDataAray),
+			mat4Pix2Pat: this.getMat4PixToPat(),
+			outputSize: displayInfo.size,
+		});
 
-//============================================================================
-/* Converting a mosaic image into a non-mosaic image. */
-getMosaicData(image: DCMImage, data:Uint16Array | Uint8Array): ArrayBuffer {
+		this.frameInfo = frameInfo;
+		return frameInfo;
+	}
+
+	/**
+	 * This is an asynchronous function that returns a promise of a FrameInfo object, either by returning
+	 * a cached version or by calling another function to retrieve it.
+	 * @returns The `gocFrames()` function returns a `Promise` that resolves to a `FrameInfo` object. If
+	 * `this.frameInfo` is not null, it returns `this.frameInfo` immediately. Otherwise, it calls the
+	 * `getFrames()` function and waits for it to complete before returning the result.
+	 */
+	async gocFrames(): Promise<FrameInfo> {
+		if (this.frameInfo !== null) return this.frameInfo;
+		return await this.getFrames();
+	}
+
+	//============================================================================
+	/* Converting a mosaic image into a non-mosaic image. */
+	getMosaicData(image: DCMImage, data:Uint16Array | Uint8Array): ArrayBuffer {
 		const [image0] = this.images;
 
 		const mosaicWidth = image0.columns;

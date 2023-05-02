@@ -34,8 +34,6 @@ class FrameInfo implements IFrameInfo {
 
 	visible?: boolean | undefined;
 
-	useCustomProgram?: boolean | undefined
-
 	constructor(info: IFrameInfoConstructor) {
 		this.imageInfo 	= info.imageInfo;
 		this.frameNo 	= info.frameNo;
@@ -43,7 +41,6 @@ class FrameInfo implements IFrameInfo {
 		this.mat4Pix2Pat= info.mat4Pix2Pat;
 		this.customProgram = info.customProgram;
 		this.visible = info.visible === undefined ? true : info.visible;
-		this.useCustomProgram = info.useCustomProgram === undefined ? true : info.useCustomProgram;
 	}
 	
 	getPix2MM(pixpnt:number[]): number[] {
