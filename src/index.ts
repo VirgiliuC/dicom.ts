@@ -6,6 +6,7 @@ import Series from "./image/series";
 import Renderer  from "./renderer/Renderer";
 import { ColorMap, makeRainbowPallette, makeRainbowColormap, makeColorPalletteFromMap, makeHotColdColorMap}  from "./renderer/Utils";
 import {IFrameInfo} from "./image/Types";
+import FrameInfo from "./image/FrameInfo";
 
 import {
 	TransferSyntax,
@@ -28,6 +29,7 @@ export {
 	makeRainbowPallette, 
 	makeRainbowColormap,
 	makeColorPalletteFromMap,
-	makeHotColdColorMap
+	makeHotColdColorMap,
+	FrameInfo
 };
  export type { ColorMap,IFrameInfo };
