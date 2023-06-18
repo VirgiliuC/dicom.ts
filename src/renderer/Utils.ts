@@ -1,5 +1,5 @@
 
-import {IImagePaletteInfo, IDisplayInfo} from "../image/Types";
+import {IImagePaletteInfo} from "../image/Types";
 
 /**
  * "Given a hue, saturation and luminance, return a DataView containing the RGB values."
@@ -139,23 +139,23 @@ export function  makeRainbowColormap (
 export function makeHotColdColorMap(coldThreshold: number, hotThreshold: number) {
     let colorMap: ColorMap = new Map();
 
+    const minThreshold = 0;
+    colorMap.set(minThreshold, [0,0,255]);
+    colorMap.set(coldThreshold, [0,0,0]);
+    colorMap.set(hotThreshold, [255,0,0]);
+
+    return colorMap;
+}
+
+export function makeRangeColorMap(keyStart: number, keyEnd: number, outRangeCol: [number,number,number]) {
     const nEntries = 16;
-    const keyIncrement = (hotThreshold-coldThreshold)/(nEntries-1);
-    let keyCurrent = coldThreshold;
+    const keyIncrement = (keyEnd-keyStart)/(nEntries-1);
+    const outsideRangeKey = keyStart + (keyIncrement*nEntries);
 
-    for (let i = 0; i < nEntries; i++) {
-        if (i < nEntries/2) {
-            colorMap.set(keyCurrent, [0, 0, 255]);
-        }
-        else if (i < nEntries-1) {
-            colorMap.set(keyCurrent, [0, 0, 0]);
-        }
-        else {
-            colorMap.set(keyCurrent, [255, 0, 0]);
-        }
+    let colorMap: ColorMap = makeRainbowColormap(nEntries, keyStart, keyEnd, 0.7, 0);
 
-        keyCurrent += keyIncrement;
-    }
+    colorMap.set(0, outRangeCol);
+    colorMap.set(outsideRangeKey, outRangeCol);
 
     return colorMap;
 }
