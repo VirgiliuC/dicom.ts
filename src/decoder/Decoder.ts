@@ -7,7 +7,7 @@ import { ImageSize, ISize } from "../image/Types";
 //=======================================================================================
 interface IDecoder {
 	image: IDisplayInfo 
-	getFramePixels(frameNo:number):Promise<Blob>
+	getFramePixels(frameNo:number):Blob
 }
 
 //========================================================================================
@@ -21,7 +21,7 @@ class Decoder implements IDecoder {
 	}
 //------------------------------------------------------------------------------
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	protected decode(frameNo:number):Promise<DataView> {
+	protected decode(frameNo:number): DataView {
 		const { data, nFrames } = this.image;
 		const bytesPerFrame = data.byteLength / nFrames;
 		const dv = new DataView(
@@ -29,7 +29,7 @@ class Decoder implements IDecoder {
 			data.byteOffset + bytesPerFrame * frameNo,
 			bytesPerFrame
 		);
-		return Promise.resolve(dv);
+		return dv;
 	}
 //------------------------------------------------------------------------------
 	
@@ -39,13 +39,13 @@ class Decoder implements IDecoder {
 	 * @param {number} frameNo - the frame number to decode. If negative, all frames are decoded.
 	 * @returns A Blob object.
 	 */
-	async getFramePixels(frameNo:number):Promise<Blob> {
+	getFramePixels(frameNo:number): Blob {
 		let currFrame = frameNo < 0 ? 0 : frameNo;
 		let endFrame = frameNo < 0 ? this.image.nFrames : frameNo+1;
 		let frameDataAray = [];
 		for(; currFrame < endFrame; currFrame++){
 			/*decode frame-by-frame and collate*/
-			const pixelData = await this.decode(currFrame);
+			const pixelData = this.decode(currFrame);
 			frameDataAray.push(pixelData);
 		}
 		/*concatenate all the frames' pixel data*/

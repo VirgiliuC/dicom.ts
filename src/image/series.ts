@@ -596,7 +596,7 @@ class Series {
 	/* Returns a pixel block with its associated info, to be used for a texture3D-based representation.
 	Whether the series is formed by separate images (like CT) describing a volume, or a multi-frame
 	image like RTDose, the pixels are grouped together for texture 3D*/	
-	async getFrames():Promise<FrameInfo> 
+	getFrames():FrameInfo 
 	{	
 		let frameDataAray:Blob[] = [];
 		let numImages:number = 0;
@@ -620,7 +620,7 @@ class Series {
 			/* select the correct decoder for this image modality*/
 			const decoder = decoderForImage(this.images[currFrame]);	
 			/*decode frame-by-frame and accumulate*/
-			const frameData = await decoder!.getFramePixels(frameIndex);
+			const frameData = decoder!.getFramePixels(frameIndex);
 			/*concatenate all the frames' pixel data in one contiguous block*/
 			frameDataAray.push(frameData);
 		}
@@ -643,9 +643,9 @@ class Series {
 	 * `this.frameInfo` is not null, it returns `this.frameInfo` immediately. Otherwise, it calls the
 	 * `getFrames()` function and waits for it to complete before returning the result.
 	 */
-	async gocFrames(): Promise<FrameInfo> {
+	gocFrames(): FrameInfo {
 		if (this.frameInfo !== null) return this.frameInfo;
-		return await this.getFrames();
+		return this.getFrames();
 	}
 
 	//============================================================================

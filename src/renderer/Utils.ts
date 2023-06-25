@@ -154,7 +154,10 @@ export function makeRangeColorMap(keyStart: number, keyEnd: number, outRangeCol:
 
     let colorMap: ColorMap = makeRainbowColormap(nEntries, keyStart, keyEnd, 0.7, 0);
 
-    colorMap.set(0, outRangeCol);
+    // if (keyStart !== 0) {
+        colorMap.set(-1, outRangeCol);
+    // }
+    
     colorMap.set(outsideRangeKey, outRangeCol);
 
     return colorMap;

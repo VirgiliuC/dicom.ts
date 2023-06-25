@@ -14,7 +14,6 @@ interface IFrameInfoConstructor {
 	outputSize: ImageSize;
 	customProgram?: IProgram;
 	visible?: boolean;
-	useCustomProgram?: boolean;
 }
 
 //--------------------------------------------------------
@@ -56,6 +55,27 @@ class FrameInfo implements IFrameInfo {
 		// if(this.gl.isTexture(this.texture)){
 		// 	this.gl.deleteTexture(this.texture);
 		// }
+	}
+
+	/**
+	 * The function clones a FrameInfo object with the same properties.
+	 * @param {FrameInfo} frameInfo - The input object containing information about a frame, including
+	 * frame number, image information, pixel data, output size, transformation matrix, custom program,
+	 * and visibility status.
+	 * @returns A cloned FrameInfo
+	 */
+	static clone(frameInfo: FrameInfo) {
+		let newFrameInfo = new FrameInfo({
+			frameNo: frameInfo.frameNo,
+			imageInfo: Object.assign({}, frameInfo.imageInfo),
+			pixelData: frameInfo.pixelData,
+			outputSize: frameInfo.imageInfo.size,
+			mat4Pix2Pat: frameInfo.mat4Pix2Pat,
+			customProgram: frameInfo.customProgram,
+			visible: frameInfo.visible
+		});
+		newFrameInfo.imageInfo.palette = Object.assign({}, null);
+		return newFrameInfo;
 	}
 }
 
