@@ -63,13 +63,20 @@ export class ImageSize implements IImageSize {
 /* Defining an enum for the different types of codecs that can be used. */
 /* eslint-disable no-bitwise */
 export enum Codec {
-	Uncompressed	= 0x0,
-	JPEG 			= 0x1,		// baseline
-	JPEGExt			= 0x1 << 1,	// baseline 12bit (extended)
-	JPEG2000 		= 0x1 << 2,
-	JPEGLS 			= 0x1 << 3,
-	JPEGLossless 	= 0x1 << 4,
-	RLE				= 0x1 << 5,
+	// Uncompressed	= 0x0,
+	// JPEG 			= 0x1,		// baseline
+	// JPEGExt			= 0x1 << 1,	// baseline 12bit (extended)
+	// JPEG2000 		= 0x1 << 2,
+	// JPEGLS 			= 0x1 << 3,
+	// JPEGLossless 	= 0x1 << 4,
+	// RLE				= 0x1 << 5,
+    Uncompressed = 0,
+    JPEG = 1,
+    JPEGExt = 2,
+    JPEG2000 = 4,
+    JPEGLS = 8,
+    JPEGLossless = 16,
+    RLE = 32
 }
 
 //--------------------------------------------------------

@@ -70,7 +70,7 @@ class Renderer {
 		const canvas = inCanvas || document?.createElement("canvas") || new HTMLCanvasElement();
 		
 		/* It creates a new WebGL2RenderingContext object. */
-		const gl = canvas.getContext("webgl2");
+		const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true, });
 		if (!gl) {
 			throw Error("could not create webgl2 from canvas");
 		}
@@ -155,8 +155,8 @@ class Renderer {
         const {viewport} =this;
         /* let's set the viewport as xo, yo, width, height respectively*/
         gl.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
-        gl.scissor(viewport[0],viewport[1],viewport[2],viewport[3]);
         gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(viewport[0],viewport[1],viewport[2],viewport[3]);
         gl.clearColor(0,0,0,1);
         gl.clear(gl.COLOR_BUFFER_BIT);
         /*here we will blend all the images according to their alpha (use modulation colour)*/
@@ -168,7 +168,7 @@ class Renderer {
         twgl.drawObjectList(gl, this.toverlayDrawObjectArray);
         gl.disable(gl.BLEND);
         twgl.drawObjectList(gl, this.soverlayDrawObjectArray);
-        gl.disable(gl.SCISSOR_TEST);
+        // gl.disable(gl.SCISSOR_TEST);
     }
     /**
      * It returns the number of frame sets in the animation
