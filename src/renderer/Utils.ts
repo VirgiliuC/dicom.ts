@@ -148,15 +148,15 @@ export function makeHotColdColorMap(coldThreshold: number, hotThreshold: number)
 }
 
 export function makeRangeColorMap(keyStart: number, keyEnd: number, outRangeCol: [number,number,number]) {
-    const nEntries = 16;
+    const nEntries = 8;
     const keyIncrement = (keyEnd-keyStart)/(nEntries-1);
     const outsideRangeKey = keyStart + (keyIncrement*nEntries);
 
     let colorMap: ColorMap = makeRainbowColormap(nEntries, keyStart, keyEnd, 0.7, 0);
 
-    // if (keyStart !== 0) {
+    if (keyStart !== 0) {
         colorMap.set(-1, outRangeCol);
-    // }
+    }
     
     colorMap.set(outsideRangeKey, outRangeCol);
 
