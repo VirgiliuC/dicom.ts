@@ -4,6 +4,7 @@ import { DCMImage, DCMObject } from "./parser";
 import Series from "./image/series";
 
 import Renderer  from "./renderer/Renderer";
+import { Renderer2D } from "./renderer";
 import { ColorMap, makeRainbowPallette, makeRainbowColormap, makeColorPalletteFromMap, makeHotColdColorMap, makeRangeColorMap}  from "./renderer/Utils";
 import {IFrameInfo} from "./image/Types";
 import FrameInfo from "./image/FrameInfo";
@@ -22,6 +23,7 @@ export {
 	parseDcmObj,
 	parseImage,
 	Renderer,
+	Renderer2D,
 	Parser,
 	Series,
 	DCMObject, 

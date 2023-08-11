@@ -596,7 +596,7 @@ class Series {
 	/* Returns a pixel block with its associated info, to be used for a texture3D-based representation.
 	Whether the series is formed by separate images (like CT) describing a volume, or a multi-frame
 	image like RTDose, the pixels are grouped together for texture 3D*/	
-	getFrames():FrameInfo 
+	async createFrames(): Promise<FrameInfo> 
 	{	
 		let frameDataAray:Blob[] = [];
 		let numImages:number = 0;
@@ -620,7 +620,7 @@ class Series {
 			/* select the correct decoder for this image modality*/
 			const decoder = decoderForImage(this.images[currFrame]);	
 			/*decode frame-by-frame and accumulate*/
-			const frameData = decoder!.getFramePixels(frameIndex);
+			const frameData = await decoder!.getFramePixels(frameIndex);
 			/*concatenate all the frames' pixel data in one contiguous block*/
 			frameDataAray.push(frameData);
 		}
@@ -637,16 +637,13 @@ class Series {
 	}
 
 	/**
-	 * This is an asynchronous function that returns a promise of a FrameInfo object, either by returning
-	 * a cached version or by calling another function to retrieve it.
-	 * @returns The `gocFrames()` function returns a `Promise` that resolves to a `FrameInfo` object. If
-	 * `this.frameInfo` is not null, it returns `this.frameInfo` immediately. Otherwise, it calls the
-	 * `getFrames()` function and waits for it to complete before returning the result.
+	 * The function "getFrames" returns the frame information or null.
+	 * @returns The method is returning either a `FrameInfo` object or `null`.
 	 */
-	gocFrames(): FrameInfo {
-		if (this.frameInfo !== null) return this.frameInfo;
-		return this.getFrames();
+	getFrames(): FrameInfo | null {
+		return this.frameInfo;
 	}
+	
 
 	//============================================================================
 	/* Converting a mosaic image into a non-mosaic image. */
