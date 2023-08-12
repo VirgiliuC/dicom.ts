@@ -25,7 +25,8 @@ export enum SliceDirection {
 	Axial = 2,
 	Coronal = 1,
 	Sagittal = 0,
-	Oblique = 3
+	_3D = 3,
+	Oblique = 4
 }
 
 export enum ByteType {
