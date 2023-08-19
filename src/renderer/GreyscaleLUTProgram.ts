@@ -50,7 +50,8 @@ class GreyscaleLUTProgram implements IProgram {
 		} = this;
 		const {
 			texture,
-			imageInfo
+			imageInfo,
+			frameNo
 		} = frame;
 
 		const { modulationColor,lut } = imageInfo;
@@ -84,6 +85,7 @@ class GreyscaleLUTProgram implements IProgram {
 			u_firstInputValue: lut!.firstValue,
 			u_maxValue: 2 ** info.bitsStored,
 			u_modulation: modulationColor,
+			u_frameNo: frameNo
 		};
 		
 		return {

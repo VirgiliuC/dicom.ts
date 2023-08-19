@@ -11,6 +11,7 @@ layout(location = 1) out vec4 out_1;
 uniform highp sampler3D u_minTexture;
 uniform highp sampler3D u_maxTexture;
 uniform vec2 u_srcResolution;
+uniform float u_frameNo;
 
 float greyscale(vec4 color) {
   $(word)
@@ -53,6 +54,8 @@ void main() {
             }
         }
     }
+
+	gl_FragDepth = gl_FragCoord.z - (0.005 * u_frameNo);
 
     out_0 = minColor;
     out_1 = maxColor;

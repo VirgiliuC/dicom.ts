@@ -1,7 +1,7 @@
 import sha1 from "sha1";
 import * as twgl from "twgl.js";
 // import { decoderForImage, Decoder } from "../decoder";
-import { ISize, ImageSize } from "../image/Types";
+import { ImageSize } from "../image/Types";
 import { DCMImage } from "../parser";
 import { Codec, IDisplayInfo } from "../image/Types";
 import { IFrameInfo } from "../image/Types";
@@ -13,7 +13,6 @@ import GreyscaleLUTProgram from "./GreyscaleLUTProgram";
 import ContrastifyProgram from "./ContrastifyProgram";
 import ColorProgram from "./ColorProgram";
 import ColorPaletteProgram from "./ColorPaletteProgram";
-import { isGeneratorFunction } from "util/types";
 
 /* This class needs to be able to:
     - add FrameInfo objects (could be from a Image Series or any other patient-derived 3D image)
@@ -52,15 +51,23 @@ class Renderer {
     protected toverlayDrawObjectArray: Array<IDrawObject> = Array(0);
     protected soverlayDrawObjectArray: Array<IDrawObject> = Array(0);
 
-	// zooming and panning
-	// private panDelta: twgl.v3.Vec3 = [50,50,0];
+	// panning
 	private deltaT: Array<number> = [0,0,0,0];
 	private deltaB: Array<number> = [0,0,0,0];
 	private deltaL: Array<number> = [0,0,0,0];
 	private deltaR: Array<number> = [0,0,0,0];
 
+	// zooming
+	private minScale: number = 0.01;
+	private maxScale: number = 1;
 	private scale: Array<number> = [1,1,1,1];
 
+	// orbiting
+	private orbitAngle: Array<number> = [0,0];
+	private orbitRadius: number = 100;
+
+	// 3D control
+	private pivotPoint: twgl.v3.Vec3 = [0,0,0];
     
 	/**
 	 * It creates a new WebGL2RenderingContext object.
@@ -104,9 +111,7 @@ class Renderer {
         /* determine the patient volume encompassing all the frame sets*/
         this.computePatAABBfromImages();
         /* now compute the whole M-V-P matrix chain, updating the shared uniforms*/
-        this.computeMat4Model();
-        this.computeMat4View();
-        this.computeMat4Proj();	
+		this.slicingDirection = this.slicingDir;
         /*reset the cutting point to somewhere meaningful*/
         const {width, height} =this.frameSets[0]!.imageInfo!.size;
         this.cutIndex = [width/2,height/2,0];	
@@ -158,18 +163,243 @@ class Renderer {
         gl.enable(gl.SCISSOR_TEST);
         gl.scissor(viewport[0],viewport[1],viewport[2],viewport[3]);
         gl.clearColor(0,0,0,1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+		gl.clearDepth(1);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         /*here we will blend all the images according to their alpha (use modulation colour)*/
         gl.enable(gl.BLEND);
         gl.blendEquation(gl.FUNC_ADD);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        // gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
-        twgl.drawObjectList(gl, this.imgDrawObjectArray);
+
+		// draw all 3 planes in 3D
+		if (this.slicingDir === SliceDirection._3D) {
+			// enable depth test if we are in a 3D view
+			gl.enable(gl.DEPTH_TEST);
+
+			this.slicingDir = SliceDirection.Axial;
+			this.computeMat4Model();
+			twgl.drawObjectList(gl, this.imgDrawObjectArray);
+
+			this.slicingDir = SliceDirection.Sagittal;
+			this.computeMat4Model();
+			twgl.drawObjectList(gl, this.imgDrawObjectArray);
+
+			this.slicingDir = SliceDirection.Coronal;
+			this.computeMat4Model();
+			twgl.drawObjectList(gl, this.imgDrawObjectArray);
+
+			this.slicingDir = SliceDirection._3D;
+		}
+		// else draw one plane at the current slicing dir
+		else {
+			twgl.drawObjectList(gl, this.imgDrawObjectArray);
+		}
+
         twgl.drawObjectList(gl, this.toverlayDrawObjectArray);
         gl.disable(gl.BLEND);
         twgl.drawObjectList(gl, this.soverlayDrawObjectArray);
-        // gl.disable(gl.SCISSOR_TEST);
+		gl.disable(gl.DEPTH_TEST);
     }
+
+	/**
+	 * > The function computes the patient AABB from the image AABBs
+	 */
+	protected computePatAABBfromImages(){
+		/* Reset the patient AABB for a fresh computation*/     
+		this.mmPatMinAABB = [Number.MAX_VALUE,Number.MAX_VALUE,Number.MAX_VALUE];
+		this.mmPatMaxAABB = [-Number.MAX_VALUE,-Number.MAX_VALUE,-Number.MAX_VALUE];
+			/*search each valid frame set and get the encompassing AABB for all*/
+			this.frameSets.forEach((frames) => {
+				if(frames) {
+				const {size, nFrames} = frames.imageInfo;
+				/* offset the size from the voxel centre to the voxel borders*/	
+				// const pixOffset = -0.5;
+				const pixPatMinAABB:twgl.v3.Vec3 = [-0.5,-0.5,-0.5];
+				const pixPatMaxAABB:twgl.v3.Vec3= [size.width-0.5,size.height-0.5,nFrames-0.5];
+				const mmPatMinAABB:twgl.v3.Vec3 = [0,0,0];
+				const mmPatMaxAABB:twgl.v3.Vec3 = [0,0,0];
+				/*transform patient pixel AABB in mm PCS*/
+				twgl.m4.transformPoint(frames.mat4Pix2Pat,pixPatMinAABB,mmPatMinAABB);
+				twgl.m4.transformPoint(frames.mat4Pix2Pat,pixPatMaxAABB,mmPatMaxAABB);
+				twgl.v3.min(mmPatMinAABB,this.mmPatMinAABB,this.mmPatMinAABB);
+				twgl.v3.max(mmPatMaxAABB,this.mmPatMaxAABB,this.mmPatMaxAABB);
+				}
+			});
+	}
+
+	/**
+	 * > The function computes the model matrix for the current slicing direction, and the current
+	 * slicing point
+	 */
+	protected computeMat4Model(){
+		const renderDir:number = this.slicingDir as number;
+
+		const {mmPatMinAABB, mmPatMaxAABB} = this;
+
+		//----- Model matrix ----//
+		const rotAngles:number[] 	= [-Math.PI/2, Math.PI/2, 0];
+		const rotAxes:twgl.v3.Vec3[]= [[0,1,0],[1,0,0],[0,0,1]];
+		const frameLoc:twgl.v3.Vec3 = [0,0,0];
+		/*translate with the required distance from mmPatMin to cutPoint, along the slicing dir*/
+		frameLoc[renderDir] 		= this.cuttingPoint[renderDir]-mmPatMinAABB[renderDir];
+		
+		/*use normalized coords. below*/
+		const Tto 	= twgl.m4.translation( [1,1,1]);//translate to origin
+		const Ry 	= twgl.m4.axisRotation(rotAxes[renderDir], rotAngles[renderDir]);//rotate in origin
+		const Tfo 	= twgl.m4.translation( [-1,-1,-1]);//translate back from origin
+		const Ttf 	= twgl.m4.translation(frameLoc);//move the frame plane into the slicing point
+		/*convert normalized to patient coords. using an inverted ortho projection matrix */
+		const n2pat	= twgl.m4.inverse( 
+			twgl.m4.ortho(mmPatMinAABB[0], mmPatMaxAABB[0], 
+							mmPatMinAABB[1], mmPatMaxAABB[1],
+							-mmPatMinAABB[2],-mmPatMaxAABB[2]));
+		/*multiply all the matrices to form the final 'model' transform. Order's Important!*/  
+		let mat_model:twgl.m4.Mat4;      
+		mat_model = twgl.m4.multiply(Ry, Tto);
+		mat_model = twgl.m4.multiply(Tfo, mat_model);
+		mat_model = twgl.m4.multiply(n2pat, mat_model);
+		mat_model = twgl.m4.multiply(Ttf, mat_model);
+
+		this.sharedUniforms.u_matrix_model = mat_model;
+	}
+	
+	/**
+	 * > The function computes the view matrix for the current slicing direction
+	 */
+	protected computeMat4View(){
+		const renderDir:number = this.slicingDir as number;
+
+		const {mmPatMinAABB, mmPatMaxAABB} = this;
+		let mat_view:twgl.m4.Mat4;    
+		//----- View matrix ----//
+		const centerAABB:twgl.v3.Vec3 = twgl.v3.divScalar(twgl.v3.add(mmPatMinAABB,mmPatMaxAABB),2);
+		const eye = {...centerAABB}; 	eye[renderDir] = mmPatMinAABB[renderDir];
+		const target = {...centerAABB};	target[renderDir] = mmPatMaxAABB[renderDir];
+		const upVec:twgl.v3.Vec3[] 	= [[0,0,1],[0,0,1],[0,-1,0]];//[S,C,A]
+		/*this matrix moves the camera into position, so needs inverting for a propoer view matrix*/  
+		mat_view = twgl.m4.lookAt(eye,target,upVec[renderDir]);
+		mat_view = twgl.m4.inverse(mat_view);
+		this.sharedUniforms.u_matrix_view = mat_view;
+	}
+	
+	/**
+	* > The function computes the orthographic projection matrix for the current slice
+	*/
+	protected computeMat4Ortho(){
+		const renderDir:number = this.slicingDir as number;
+
+		const {mmPatMinAABB, mmPatMaxAABB} = this;
+		let mat_ortho:twgl.m4.Mat4;    
+		//----- Ortho Proj ----//
+		const {viewport} =this;
+		const VW = viewport[2];
+		const VH = viewport[3];
+		const mmPatSize = twgl.v3.subtract(mmPatMaxAABB,mmPatMinAABB);
+		if(mmPatSize[2] === 0) {
+			mmPatSize[2] = mmPatSize[2] + 0.00;
+		}
+		const mmOffset = 0.05; //guard against degenerate case of single image
+		const hW:number[] = [mmPatSize [1]/2,mmPatSize [0]/2,mmPatSize [0]/2];
+		const hH:number[] = [mmPatSize [2]/2,mmPatSize [2]/2,mmPatSize [1]/2]; 
+		// const near:number = 0; 	
+		// const far:number  =  mmPatSize [renderDir]+1.0;
+		const near:number = (this.cutPoint[renderDir]-0.5-mmPatMinAABB[renderDir]); 	
+		const far:number  = (this.cutPoint[renderDir]+0.5-mmPatMinAABB[renderDir]);
+
+		const VAR = VW/VH;//viewport aspect ratio
+		const OAR = (hW[renderDir])/(hH[renderDir]);//ortho projection aspect ratio
+		/* we need to preserve the aspect ratio of the images, if viewport is different size=wise*/
+		if(VAR > OAR){
+			mat_ortho  = twgl.m4.ortho(
+				(-hW[renderDir]*VAR/OAR)*this.scale[renderDir]+this.deltaL[renderDir],
+				(hW[renderDir]*VAR/OAR)*this.scale[renderDir]+this.deltaR[renderDir],
+				(-hH[renderDir])*this.scale[renderDir]+this.deltaB[renderDir],
+				(hH[renderDir])*this.scale[renderDir]+this.deltaT[renderDir],
+				near,far
+			);
+		}
+		else{
+			mat_ortho  = twgl.m4.ortho(
+				(-hW[renderDir])*this.scale[renderDir]+this.deltaL[renderDir],
+				(hW[renderDir])*this.scale[renderDir]+this.deltaR[renderDir],
+				(-hH[renderDir]*OAR/VAR)*this.scale[renderDir]+this.deltaB[renderDir],
+				(hH[renderDir]*OAR/VAR)*this.scale[renderDir]+this.deltaT[renderDir],
+				near,far
+			);
+		};
+		this.sharedUniforms.u_matrix_proj = mat_ortho;
+	}
+
+	/**
+	 * The function computes a perspective matrix for a 3D rendering using the given angle, viewport
+	 * dimensions, and near/far clipping planes.
+	 */
+	protected computeMat4Perspective() {
+		const { viewport } = this;
+		const VW = viewport[2];
+		const VH = viewport[3];
+
+		const angle = 60;
+		const aspect = VW/VH;
+		const near = 20;
+		const far = 1000;
+
+		this.sharedUniforms.u_matrix_proj = twgl.m4.perspective(
+			(angle * Math.PI) / 180,
+			aspect,
+			near,
+			far,
+		);
+	}
+
+	/**
+	 * The function computes a view matrix for a 3D scene by applying rotations, translations, and zooming
+	 * based on user input.
+	 */
+	protected computeMat4View3D() {
+		// compute view matrix for axial direction
+		this.slicingDir = SliceDirection.Axial;
+		this.computeMat4View();
+		this.slicingDir = SliceDirection._3D;
+
+		// pivot point
+		const { mmPatMinAABB, mmPatMaxAABB } = this;
+		const centerAABB = twgl.v3.divScalar(twgl.v3.add(mmPatMinAABB,mmPatMaxAABB),2);
+		this.pivotPoint = [...centerAABB];
+
+		// rotation axes
+		const rotAxes:twgl.v3.Vec3[]= [[0,1,0],[1,0,0],[0,0,1]];
+
+		const stiffness = 4;
+
+		// rotation matrices
+		let rotX = twgl.m4.axisRotation(rotAxes[0], ((this.orbitAngle[0]/stiffness) * Math.PI) / 180);
+		let rotY = twgl.m4.axisRotation(rotAxes[1], ((this.orbitAngle[1]/stiffness) * Math.PI) / 180);
+
+		// rotation around pivot point
+		const Tp = twgl.m4.translation([-this.pivotPoint[0], -this.pivotPoint[1], -this.pivotPoint[2]]);
+		const rotation = twgl.m4.multiply(rotX, rotY); 
+		const Tfp = twgl.m4.translation([this.pivotPoint[0], this.pivotPoint[1], this.pivotPoint[2]]);
+		const transformation = twgl.m4.multiply(Tfp, twgl.m4.multiply(rotation, Tp));
+
+		// lookAt matrix from the view matrix
+		const lookAt = twgl.m4.inverse(this.sharedUniforms.u_matrix_view);
+
+		const transformedLookAt = twgl.m4.multiply(transformation, lookAt);
+		const u_matrix_view = twgl.m4.inverse(transformedLookAt);
+
+		// pan the view matrix
+		const dir3D = SliceDirection._3D;
+
+		// (x, y) --> pan. (z) --> zoom.
+		const panZoomTranslation = twgl.m4.translation([
+			this.deltaL[dir3D] / -2, 
+			this.deltaT[dir3D] / -2, 
+			this.scale[dir3D]  * -this.orbitRadius
+		]);
+
+		this.sharedUniforms.u_matrix_view = twgl.m4.multiply(panZoomTranslation, u_matrix_view);
+	}
+
     /**
      * It returns the number of frame sets in the animation
      * @returns The number of frame sets in the animation.
@@ -203,7 +433,12 @@ class Renderer {
 		this.viewport = [...vp];
         /* when we have images, also renew the orthographic matrix, keeping the aspect ratio*/
         if(this.frameSets.length > 0){
-            this.computeMat4Proj();
+			if (this.slicingDir === SliceDirection._3D) {
+				this.computeMat4Perspective();
+			}
+			else {
+				this.computeMat4Ortho();
+			}
         }
 	}
 
@@ -225,8 +460,11 @@ class Renderer {
     set cutPoint(cut_point: twgl.v3.Vec3) {
 		this.cuttingPoint = [...cut_point];
         /* when we have images, also renew the Model matrix, moving the slice in the right place*/
-        if(this.frameSets.length > 0 && this.frameSets[0] !== undefined){
-            this.computeMat4Model();
+        if(this.frameSets.length > 0 && this.frameSets[0] !== undefined) {
+			if (this.slicingDir !== SliceDirection._3D) {
+				this.computeMat4Ortho();
+				this.computeMat4Model();
+			}
         }
 	}
     
@@ -255,7 +493,7 @@ class Renderer {
      * @returns The cutIndex is being returned.
      */
     get cutIndex():number[] {
-        if(this.frameSets.length > 0){
+        if(this.frameSets.length > 0 && this.frameSets[0] !== undefined){
             /*convert milimiters to pixel index*/
             return this.frameSets[0]!.getMM2Pix([...this.cutPoint]) ;	
         }
@@ -339,9 +577,15 @@ class Renderer {
 		this.sharedUniforms.u_sliceDir = slice_dir;
         /* when we have images, renew the whole M-V-P matrix chain*/
         if(this.frameSets.length > 0){
-            this.computeMat4Model();
-            this.computeMat4View();
-            this.computeMat4Proj();
+			if (this.slicingDir === SliceDirection._3D) {
+				this.computeMat4Perspective();
+				this.computeMat4View3D();
+			}
+			else {
+				this.computeMat4Model();
+				this.computeMat4View();
+				this.computeMat4Ortho();
+			}
         }
 	}
     
@@ -354,6 +598,65 @@ class Renderer {
 	}
 
 	/**
+	 * The function returns the zoom level based on the slicing direction.
+	 * @returns The `zoom` property is being returned, which is a number.
+	 */
+	get zoom(): number {
+		return this.scale[this.slicingDir];
+	} 
+
+	/**
+	 * The function sets the zoom scale for a 3D or orthographic view and updates the corresponding
+	 * matrix.
+	 * @param {number} zoomScale - The `zoomScale` parameter is a number that represents the desired zoom
+	 * level. It is used to adjust the scale of the object being displayed.
+	 */
+	set zoom(zoomScale: number) {
+		this.scale[this.slicingDir] = clamp(zoomScale, this.minScale, this.maxScale);
+
+		if (this.slicingDir === SliceDirection._3D) {
+			this.computeMat4View3D();
+		}
+		else {
+			this.computeMat4Ortho();
+		}
+	}
+
+	/**
+	 * The function returns the maximum zoom level.
+	 * @returns The maxZoom value, which is of type number.
+	 */
+	get maxZoom(): number {
+		return this.maxScale;
+	}
+
+	/**
+	 * The function sets the maximum zoom level for a map.
+	 * @param {number} max - The `max` parameter is a number that represents the maximum zoom level or
+	 * scale that can be set for a particular object or element.
+	 */
+	set maxZoom(max: number) {
+		this.maxScale = max;
+	} 
+
+	/**
+	 * The function returns the minimum zoom level as a number.
+	 * @returns The minimum zoom level, represented as a number.
+	 */
+	get minZoom(): number {
+		return this.minScale;
+	}
+
+	/**
+	 * The function sets the minimum zoom level for a map.
+	 * @param {number} min - The "min" parameter is a number that represents the minimum zoom level or
+	 * scale that can be set for a particular object or element.
+	 */
+	set minZoom(min: number) {
+		this.minScale = min;
+	} 
+
+	/**
 	 * This function pans the camera by the given amount in millimeters.
 	 * @param {number} mmDeltaX - The amount to pan in the X direction in millimeters.
 	 * @param {number} mmDeltaY - The amount to pan in the Y direction in millimeters.
@@ -364,17 +667,32 @@ class Renderer {
 		this.deltaB[this.slicingDir] += mmDeltaY;
 		this.deltaT[this.slicingDir] += mmDeltaY;
 
-		this.computeMat4Proj();
+		if (this.slicingDir === SliceDirection._3D) {
+			this.computeMat4View3D();
+		}
+		else {
+			this.computeMat4Ortho();
+		}
 	}
 
-	get zoom(): number {
-		return this.scale[this.slicingDir];
-	}
+	/**
+	 * The `orbit` function updates the view matrix to rotate the 3D scene based on the given delta values
+	 * for the X and Y axes.
+	 * @param {number} deltaX - The `deltaX` parameter represents the change in the x-axis rotation for
+	 * the orbit. It determines how much the object will rotate around the y-axis.
+	 * @param {number} deltaY - The parameter `deltaY` represents the change in the y-axis rotation angle
+	 * for the orbit function. It is used to update the orbit angle and apply rotation to the view matrix.
+	 * @returns Nothing is being returned in this code snippet. It is a method that performs some
+	 * calculations and updates the state of the object it belongs to, but it does not return any value.
+	 */
+	orbit(deltaX: number, deltaY: number) {
+		if (this.slicingDir !== SliceDirection._3D) return;
 
-	set zoom(zoomScale: number) {
-		this.scale[this.slicingDir] = (zoomScale <= 0) ? 0.01 : zoomScale;
+		// update the orbit angle
+		this.orbitAngle[0] += deltaX;
+		this.orbitAngle[1] += deltaY;
 
-		this.computeMat4Proj();
+		this.computeMat4View3D();
 	}
 
 	/**
@@ -387,137 +705,16 @@ class Renderer {
 		this.deltaL[this.slicingDir] = 0;
 		this.deltaR[this.slicingDir] = 0;
 		this.scale[this.slicingDir] = 1;
+		this.orbitAngle = [0,0];
 
-		this.computeMat4Proj();
+		if (this.slicingDir === SliceDirection._3D) {
+			this.computeMat4View3D();
+		} 
+		else {
+			this.computeMat4Ortho(); 
+		}
 	}
 	//------------------------------------------------------------------------------
-
-
-  /**
-   * > The function computes the patient AABB from the image AABBs
-   */
-   protected computePatAABBfromImages(){
-    /* Reset the patient AABB for a fresh computation*/     
-    this.mmPatMinAABB = [Number.MAX_VALUE,Number.MAX_VALUE,Number.MAX_VALUE];
-	this.mmPatMaxAABB = [-Number.MAX_VALUE,-Number.MAX_VALUE,-Number.MAX_VALUE];
-     /*search each valid frame set and get the encompassing AABB for all*/
-		this.frameSets.forEach((frames) => {
-            if(frames) {
-            const {size, nFrames} = frames.imageInfo;
-			/* offset the size from the voxel centre to the voxel borders*/	
-			// const pixOffset = -0.5;
-            const pixPatMinAABB:twgl.v3.Vec3 = [-0.5,-0.5,-0.5];
-            const pixPatMaxAABB:twgl.v3.Vec3= [size.width-0.5,size.height-0.5,nFrames-0.5];
-            const mmPatMinAABB:twgl.v3.Vec3 = [0,0,0];
-            const mmPatMaxAABB:twgl.v3.Vec3 = [0,0,0];
-            /*transform patient pixel AABB in mm PCS*/
-            twgl.m4.transformPoint(frames.mat4Pix2Pat,pixPatMinAABB,mmPatMinAABB);
-            twgl.m4.transformPoint(frames.mat4Pix2Pat,pixPatMaxAABB,mmPatMaxAABB);
-            twgl.v3.min(mmPatMinAABB,this.mmPatMinAABB,this.mmPatMinAABB);
-            twgl.v3.max(mmPatMaxAABB,this.mmPatMaxAABB,this.mmPatMaxAABB);
-            }
-        });
-    }
-    /**
-     * > The function computes the model matrix for the current slicing direction, and the current
-     * slicing point
-     */
-    protected computeMat4Model(){
-		const renderDir:number = this.slicingDir as number;
-
-		const {mmPatMinAABB, mmPatMaxAABB} = this;
-
-        //----- Model matrix ----//
-		const rotAngles:number[] 	= [-Math.PI/2, Math.PI/2, 0];
-		const rotAxes:twgl.v3.Vec3[]= [[0,1,0],[1,0,0],[0,0,1]];
-		const frameLoc:twgl.v3.Vec3 = [0,0,0];
-		/*translate with the required distance from mmPatMin to cutPoint, along the slicing dir*/
-		frameLoc[renderDir] 		= this.cuttingPoint[renderDir]-mmPatMinAABB[renderDir];
-        
-        /*use normalized coords. below*/
-		const Tto 	= twgl.m4.translation( [1,1,1]);//translate to origin
-		const Ry 	= twgl.m4.axisRotation(rotAxes[renderDir], rotAngles[renderDir]);//rotate in origin
-		const Tfo 	= twgl.m4.translation( [-1,-1,-1]);//translate back from origin
-		const Ttf 	= twgl.m4.translation(frameLoc);//move the frame plane into the slicing point
-        /*convert normalized to patient coords. using an inverted ortho projection matrix */
-		const n2pat	= twgl.m4.inverse( 
-			twgl.m4.ortho(mmPatMinAABB[0], mmPatMaxAABB[0], 
-						  mmPatMinAABB[1], mmPatMaxAABB[1],
-						 -mmPatMinAABB[2],-mmPatMaxAABB[2]));
-        /*multiply all the matrices to form the final 'model' transform. Order's Important!*/  
-        let mat_model:twgl.m4.Mat4;      
-		mat_model = twgl.m4.multiply(Ry, Tto);
-		mat_model = twgl.m4.multiply(Tfo, mat_model);
-		mat_model = twgl.m4.multiply(n2pat, mat_model);
-		mat_model = twgl.m4.multiply(Ttf, mat_model);
-
-		this.sharedUniforms.u_matrix_model = mat_model;
-    }
-    
-    /**
-     * > The function computes the view matrix for the current slicing direction
-     */
-    protected computeMat4View(){
-		const renderDir:number = this.slicingDir as number;
-
-		const {mmPatMinAABB, mmPatMaxAABB} = this;
-		let mat_view:twgl.m4.Mat4;    
-		//----- View matrix ----//
-		const centerAABB:twgl.v3.Vec3 = twgl.v3.divScalar(twgl.v3.add(mmPatMinAABB,mmPatMaxAABB),2);
-		const eye = {...centerAABB}; 	eye[renderDir] = mmPatMinAABB[renderDir];
-		const target = {...centerAABB};	target[renderDir] = mmPatMaxAABB[renderDir];
-		const upVec:twgl.v3.Vec3[] 	= [[0,0,1],[0,0,1],[0,-1,0]];//[S,C,A]
-        /*this matrix moves the camera into position, so needs inverting for a propoer view matrix*/  
-		mat_view = twgl.m4.lookAt(eye,target,upVec[renderDir]);
-		mat_view = twgl.m4.inverse(mat_view);
-		this.sharedUniforms.u_matrix_view = mat_view;
-    }
- 
-   /**
-    * > The function computes the orthographic projection matrix for the current slice
-    */
-    protected computeMat4Proj(){
-		const renderDir:number = this.slicingDir as number;
-
-		const {mmPatMinAABB, mmPatMaxAABB} = this;
-        let mat_ortho:twgl.m4.Mat4;    
-		//----- Ortho Proj ----//
-		const {viewport} =this;
-		const VW = viewport[2];
-		const VH = viewport[3];
-		const mmPatSize = twgl.v3.subtract(mmPatMaxAABB,mmPatMinAABB);
-		if(mmPatSize[2] === 0) {
-			mmPatSize[2] = mmPatSize[2] + 0.00;
-		}
-        const mmOffset = 0.05; //guard against degenerate case of single image
-		const hW:number[] = [mmPatSize [1]/2,mmPatSize [0]/2,mmPatSize [0]/2];
-		const hH:number[] = [mmPatSize [2]/2,mmPatSize [2]/2,mmPatSize [1]/2]; 
-		const near:number = 0; 	
-		const far:number  =  mmPatSize [renderDir]+1.0;
-
-		const VAR = VW/VH;//viewport aspect ratio
-		const OAR = (hW[renderDir])/(hH[renderDir]);//ortho projection aspect ratio
-        /* we need to preserve the aspect ratio of the images, if viewport is different size=wise*/
-		if(VAR > OAR){
-			mat_ortho  = twgl.m4.ortho(
-				(-hW[renderDir]*VAR/OAR)*this.scale[renderDir]+this.deltaL[renderDir],
-				(hW[renderDir]*VAR/OAR)*this.scale[renderDir]+this.deltaR[renderDir],
-				(-hH[renderDir])*this.scale[renderDir]+this.deltaB[renderDir],
-				(hH[renderDir])*this.scale[renderDir]+this.deltaT[renderDir],
-				near,far
-			);
-		}
-		else{
-			mat_ortho  = twgl.m4.ortho(
-				(-hW[renderDir])*this.scale[renderDir]+this.deltaL[renderDir],
-				(hW[renderDir])*this.scale[renderDir]+this.deltaR[renderDir],
-				(-hH[renderDir]*OAR/VAR)*this.scale[renderDir]+this.deltaB[renderDir],
-				(hH[renderDir]*OAR/VAR)*this.scale[renderDir]+this.deltaT[renderDir],
-				near,far
-			);
-		};
-		this.sharedUniforms.u_matrix_proj = mat_ortho;
-    }
 
 	/**
 	 * It creates a WebGL texture from a frame of a DICOM image
@@ -746,6 +943,18 @@ class Renderer {
 		this.getProgram(imageType);
 	}
 
+}
+
+/**
+ * The clamp function returns a value that is clamped between a minimum and maximum value.
+ * @param {number} x - The value that you want to clamp between the minimum and maximum values.
+ * @param {number} min - The `min` parameter represents the minimum value that `x` can be.
+ * @param {number} max - The `max` parameter represents the maximum value that the `x` parameter can
+ * be.
+ * @returns a number.
+ */
+function clamp(x: number, min: number, max: number): number {
+	return Math.max(min, Math.min(x, max));
 }
 
 export default Renderer;

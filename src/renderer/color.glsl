@@ -11,6 +11,7 @@ uniform highp sampler3D u_texture;
 uniform float u_slope;
 uniform float u_intercept;
 uniform vec4  u_modulation;
+uniform float u_frameNo;
 
 vec4 getPlanar(vec3 coord) {
 	float third = 1.0 / 3.0;
@@ -51,6 +52,8 @@ void main() {
 	color = // $(getColor);
 
   	color = (color * u_slope) + u_intercept;
+
+	gl_FragDepth = gl_FragCoord.z - (0.005 * u_frameNo);
 
 	// $(u_invert)
 	/* use a variable alpha value equal to luminance, for an adaptable overlay trasparency.

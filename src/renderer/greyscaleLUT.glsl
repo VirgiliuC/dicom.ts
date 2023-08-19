@@ -12,6 +12,7 @@ uniform float u_lutWidth;
 uniform float u_firstInputValue;
 uniform float u_maxValue;
 uniform vec4  u_modulation;
+uniform float u_frameNo;
 
 float greyscale(vec4 color) {
 	$(word)
@@ -29,5 +30,6 @@ void main() {
 	float lutPos = (max(u_firstInputValue, grey) - u_firstInputValue);
 	grey = greyscale(texture(u_lutTexture, vec2(lutPos / u_lutWidth, 0.5))) / u_maxValue;
 	// $(shouldInvert)
+	gl_FragDepth = gl_FragCoord.z - (0.005 * u_frameNo);
 	out_0 = vec4(grey, grey, grey, 1.0)*u_modulation;
 }

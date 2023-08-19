@@ -626,7 +626,7 @@ class Series {
 		}
 		let frameInfo = new FrameInfo({
 			imageInfo: displayInfo,
-			frameNo: -1,
+			frameNo: 0,
 			pixelData: new Blob(frameDataAray),
 			mat4Pix2Pat: this.getMat4PixToPat(),
 			outputSize: displayInfo.size,

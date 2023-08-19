@@ -101,7 +101,8 @@ class ContrastifyProgram implements IProgram {
 		} = this;
 
 		const {
-			imageInfo
+			imageInfo,
+			frameNo
 		} = frame;
 
 		const {
@@ -217,6 +218,7 @@ class ContrastifyProgram implements IProgram {
 			u_slope: slope,
 			u_intercept: intercept,
 			u_modulation: modulationColor,
+			u_frameNo: frameNo,
 			u_matrix_pat2pix: twgl.m4.inverse(frame.mat4Pix2Pat)
 		};
 		/* cleanup on next runloop, keeping only the min/max textures in use (from last FB)*/

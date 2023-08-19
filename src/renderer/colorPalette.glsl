@@ -9,6 +9,7 @@ uniform highp sampler2D u_greenTexture;
 uniform highp sampler2D u_blueTexture;
 uniform float u_paletteWidthRatio;
 uniform vec4  u_modulation;
+uniform float u_frameNo;
 
 in vec3 texcoord;
 layout(location = 0) out vec4 out_0;
@@ -40,6 +41,9 @@ void main() {
 	if (u_invert) {
 		color = vec4(1.0 - color.r, 1.0 - color.g, 1.0 - color.b, 1.0);
 	}
+
+	gl_FragDepth = gl_FragCoord.z - (0.005 * u_frameNo);
+	
 	// color.a = color.r*0.2126 + color.g*0.7152 + color.b*0.0722;
 	out_0 = color*u_modulation;
 }

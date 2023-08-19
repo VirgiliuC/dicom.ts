@@ -65,7 +65,7 @@ class ColorProgram implements IProgram {
 			intercept,
 			modulationColor,
 		} = frame.imageInfo;
-		const { texture } = frame;
+		const { texture, frameNo } = frame;
 
 		
 		const imgSize = frame.imageInfo.size;
@@ -78,6 +78,7 @@ class ColorProgram implements IProgram {
 			u_slope: slope,
 			u_intercept: intercept,
 			u_modulation: modulationColor,
+			u_frameNo: frameNo
 		};
 		return {
 			active: true,

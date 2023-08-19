@@ -55,7 +55,8 @@ class ColorPaletteProgram implements IProgram {
 		} = this;
 		const {
 			texture,
-			imageInfo
+			imageInfo,
+			frameNo
 		} = frame;
 
 		const { palette, invert, modulationColor, bitsAllocated } = imageInfo;
@@ -120,6 +121,7 @@ class ColorPaletteProgram implements IProgram {
 			u_paletteWidthRatio: (2 ** bitsAllocated) / palette!.nEntries,
 			u_invert: invert,
 			u_modulation: modulationColor,
+			u_frameNo: frameNo,
 			u_matrix_pat2pix: twgl.m4.inverse(frame.mat4Pix2Pat)
 		};
 		

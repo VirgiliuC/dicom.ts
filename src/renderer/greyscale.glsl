@@ -13,6 +13,7 @@ uniform float u_winCenter;
 uniform float u_winWidth;
 
 uniform vec4  u_modulation;
+uniform float u_frameNo;
 
 in vec3 texcoord;
 
@@ -35,6 +36,12 @@ void main() {
 	float width = max(u_winWidth, 1.0);
 	grey = (grey - center) / width + 0.5;
 	grey = clamp(grey, 0.0, 1.0);
+
+	if (grey == 0.0) {
+		discard;
+	}
+
+	gl_FragDepth = gl_FragCoord.z - (0.005 * u_frameNo);
 
 	// $(shouldInvert)
 	out_0 = vec4(grey, grey,grey, 1.0)*u_modulation;
