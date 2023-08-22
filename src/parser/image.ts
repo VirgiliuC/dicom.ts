@@ -855,7 +855,7 @@ class DCMImage extends DCMObject {
 	}
 
 	// originally from: http://public.kitware.com/pipermail/insight-users/2005-March/012246.html
-	get acquiredSliceDirection() {
+	get acquiredSliceDirection(): SliceDirection {
 		const dirCos = this.getTagValue(TagIds.ImageOrientation) as number[];
 
 		if (dirCos?.length !== 6) {
