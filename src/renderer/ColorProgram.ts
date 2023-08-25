@@ -53,7 +53,7 @@ class ColorProgram implements IProgram {
 	}
 
 	
-	makeDrawObject(frame: FrameInfo) : IDrawObject {
+	async makeDrawObject(frame: FrameInfo) : Promise<IDrawObject> {
 		const {
 			gl,
 			programInfo,

@@ -13,6 +13,8 @@ import GreyscaleLUTProgram from "./GreyscaleLUTProgram";
 import ContrastifyProgram from "./ContrastifyProgram";
 import ColorProgram from "./ColorProgram";
 import ColorPaletteProgram from "./ColorPaletteProgram";
+import DRRProgram from "./DRRProgram";
+import { AABB } from "../parser/AABB";
 
 /* This class needs to be able to:
     - add FrameInfo objects (could be from a Image Series or any other patient-derived 3D image)
@@ -60,7 +62,7 @@ class Renderer {
 	// zooming
 	private minScale: number = 0.01;
 	private maxScale: number = 1;
-	private scale: Array<number> = [1,1,1,1];
+	private scale: Array<number> = [1,1,1,0.3];
 
 	// orbiting
 	private orbitAngle: Array<number> = [0,0];
@@ -88,6 +90,7 @@ class Renderer {
 			u_matrix_model: twgl.m4.identity(),
 			u_matrix_view:  twgl.m4.identity(),
 			u_matrix_proj:  twgl.m4.identity(),
+			u_matrix_panzoom: twgl.m4.identity(),
 			u_sliceDir: SliceDirection.Axial
 		};
 	}
@@ -138,7 +141,7 @@ class Renderer {
 						program = this.getProgram(frames.imageInfo);
 					}
 					/* get the Program to generate its DrawObject and add it to the list*/
-					let drawObj:IDrawObject = program?.makeDrawObject(frames);
+					let drawObj:IDrawObject = await program?.makeDrawObject(frames);
 					drawObj.uniforms.push(this.sharedUniforms);
 					this.imgDrawObjectArray.push(drawObj);
 				}			
@@ -149,7 +152,6 @@ class Renderer {
 		return Promise.resolve();
 		/*there you go! :)*/
     }
-
 	
     /**
      * > We set the viewport, clear the canvas, and then draw all the objects in the
@@ -341,7 +343,7 @@ class Renderer {
 		const angle = 60;
 		const aspect = VW/VH;
 		const near = 20;
-		const far = 1000;
+		const far = 5000;
 
 		this.sharedUniforms.u_matrix_proj = twgl.m4.perspective(
 			(angle * Math.PI) / 180,
@@ -372,32 +374,35 @@ class Renderer {
 		const stiffness = 4;
 
 		// rotation matrices
-		let rotX = twgl.m4.axisRotation(rotAxes[0], ((this.orbitAngle[0]/stiffness) * Math.PI) / 180);
-		let rotY = twgl.m4.axisRotation(rotAxes[1], ((this.orbitAngle[1]/stiffness) * Math.PI) / 180);
+		let rotX = twgl.m4.axisRotation(rotAxes[0], ((-this.orbitAngle[0]/stiffness) * Math.PI) / 180);
+		let rotY = twgl.m4.axisRotation(rotAxes[1], ((-this.orbitAngle[1]/stiffness) * Math.PI) / 180);
 
 		// rotation around pivot point
 		const Tp = twgl.m4.translation([-this.pivotPoint[0], -this.pivotPoint[1], -this.pivotPoint[2]]);
-		const rotation = twgl.m4.multiply(rotX, rotY); 
+		const rotation = twgl.m4.multiply(rotY, rotX); 
 		const Tfp = twgl.m4.translation([this.pivotPoint[0], this.pivotPoint[1], this.pivotPoint[2]]);
-		const transformation = twgl.m4.multiply(Tfp, twgl.m4.multiply(rotation, Tp));
+		const orbitMat = twgl.m4.multiply(Tfp, twgl.m4.multiply(rotation, Tp));
 
 		// lookAt matrix from the view matrix
-		const lookAt = twgl.m4.inverse(this.sharedUniforms.u_matrix_view);
+		// const lookAt = twgl.m4.inverse(this.sharedUniforms.u_matrix_view);
 
-		const transformedLookAt = twgl.m4.multiply(transformation, lookAt);
-		const u_matrix_view = twgl.m4.inverse(transformedLookAt);
+		// const orbitedLookAt = twgl.m4.multiply(orbitMat, lookAt);
+		// const u_matrix_view = twgl.m4.multiply(this.sharedUniforms.u_matrix_view, twgl.m4.inverse(orbitMat));
+		// const u_matrix_view = twgl.m4.inverse(orbitedLookAt);
 
 		// pan the view matrix
 		const dir3D = SliceDirection._3D;
 
 		// (x, y) --> pan. (z) --> zoom.
-		const panZoomTranslation = twgl.m4.translation([
+		// const panZoomTranslation = 
+
+		this.sharedUniforms.u_matrix_panzoom = twgl.m4.translation([
 			this.deltaL[dir3D] / -2, 
 			this.deltaT[dir3D] / -2, 
-			this.scale[dir3D]  * -this.orbitRadius
+			-this.orbitRadius / this.scale[dir3D]
 		]);
 
-		this.sharedUniforms.u_matrix_view = twgl.m4.multiply(panZoomTranslation, u_matrix_view);
+		this.sharedUniforms.u_matrix_view = twgl.m4.multiply(this.sharedUniforms.u_matrix_view, orbitMat);
 	}
 
     /**
@@ -585,6 +590,7 @@ class Renderer {
 				this.computeMat4Model();
 				this.computeMat4View();
 				this.computeMat4Ortho();
+				this.sharedUniforms.u_matrix_panzoom = twgl.m4.identity();
 			}
         }
 	}

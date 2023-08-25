@@ -9,7 +9,7 @@ export type Uniforms = {[name: string]: any};
 interface IProgram {
 	gl: WebGL2RenderingContext;
 	// run(frame: FrameInfo, size: ISize):void
-	makeDrawObject(frame: FrameInfo) : IDrawObject;
+	makeDrawObject(frame: FrameInfo) : Promise<IDrawObject>;
 	destroy(): void
 }
 

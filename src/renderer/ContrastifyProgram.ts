@@ -89,7 +89,7 @@ class ContrastifyProgram implements IProgram {
 	// eslint-disable-next-line class-methods-use-this
 	
 
-	makeDrawObject(frame: FrameInfo) : IDrawObject {
+	async makeDrawObject(frame: FrameInfo) : Promise<IDrawObject> {
 		const framebuffers:Array<FramebufferInfo> = [];
 
 		const {
